@@ -26,7 +26,7 @@ Before writing any code, identify the task domain and read relevant documentatio
 
 <important>
 When a rule or skill is listed above, you MUST read and follow it step-by-step.
-Strict code freeze applies to new features and non-trivial tasks until `[PLAN_APPROVED]` is issued by Lead Reviewer (`@reviewer` or Claude CLI; see `.agents/rules/05-plan-review.md`).
+Strict code freeze applies to new features and non-trivial tasks until `[PLAN_APPROVED]` is issued by Lead Reviewer (`@reviewer`; see `.agents/rules/05-plan-review.md`).
 </important>
 
 ## Skill Precedence Hierarchy (Vikini-First, Superpowers-Complementary)
@@ -42,7 +42,7 @@ Các skill `superpowers` (`using-git-worktrees`, `writing-plans`, `executing-pla
 
 - **Tier 1 (After each edit)**: `npm run type-check` — bắt lỗi kiểu sớm.
 - **Tier 2 (Task completion)**: `npm run verify` (type-check + lint + tests), cập nhật co-located tests, `docs/CHANGELOG.md` và docs liên quan.
-- **Visual QA Gate (UI / CSS changes)**: Bắt buộc bật `next dev`, dùng Playwright `page.screenshot()` chụp `.png` ở Desktop (`1440px`) & Mobile (`375px`) × Dark/Light rồi gọi `read_file` đọc trực tiếp từng ảnh để tự soi bố cục/chữ/tương phản bằng mắt trước khi nghiệm thu (`.agents/rules/03-ui.md`).
+- **Visual QA Gate (UI / CSS changes)**: Bắt buộc chạy qua `node scripts/visual-qa-runner.mjs --script <path>` (bật `next dev` chống treo), dùng Playwright `page.screenshot()` chụp `.png` ở Desktop (`1440px`) & Mobile (`375px`) × Dark/Light rồi gọi `read_file` đọc trực tiếp từng ảnh để tự soi bố cục/chữ/tương phản bằng mắt trước khi nghiệm thu (`.agents/rules/03-ui.md`).
 - **Tier 3 (Before merge/deploy)**: CI pipeline độc lập.
 
 ## Windows PowerShell 5.1 Terminal Guidance

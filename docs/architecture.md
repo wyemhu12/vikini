@@ -274,14 +274,14 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
                     (Zero-Self-Execution)
                               │
                               ▼
-               [ Primary Planner: Claude Code CLI ]
-           (run-claude.ps1 -Role planner / Fallback: @planner)
+               [ Primary Planner: @planner Subagent ]
+               (model: inherit / Gemini 4 Argon High)
                               │
                   (Uninterrupted Chain - KHÔNG ngắt quãng hỏi PM)
                               │
                               ▼
                [ Primary Reviewer: @reviewer Subagent ]
-           (model: inherit Gemini 4 Argon High / Fallback: Claude CLI)
+               (model: inherit / Gemini 4 Argon High)
                               │
                      [ Thẩm định + verify-plan.mjs ]
                               │
@@ -290,12 +290,12 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
           ▼                   ▼                   ▼
  [CHANGES_REQUESTED]  [AWAITING_CRITIC]    [PLAN_APPROVED]
           │                   │                   │
-          │          (Cross-Model Critic:         │
-          │           run-claude.ps1 -Role critic)│
-          │                   ├── DISAGREE ───────┼──► (Về Planner)
+          │    (Independent Critic Pass:          │
+          │     Fresh @reviewer, zero history)    │
+          │                   ├── DISAGREE ───────┼──► (Về @planner)
           │                   └── AGREE ──────────┤
           ▼                                       ▼
-(Gửi lại Planner sửa)                  [ Pre-Flight Gate ]
+(Gửi lại @planner sửa)                 [ Pre-Flight Gate ]
 (Tối đa 10 vòng lặp)                         │ (PASS)
                                              ▼
                                     [ Trình User (PM) Duyệt ]
@@ -309,21 +309,21 @@ User (PM) ──[Task]──▶ Orchestrator (Dispatcher)
 
 ### Các Cơ Chế Cưỡng Chế Cốt Lõi:
 
-1. **Platform Hook Code Freeze Guard**: Chốt chặn tầng máy chủ phát triển (`.agents/hooks.json`, `.claude/settings.json` với `"onFailure": "block"`, và `.agents/scripts/code-freeze-guard.js` cùng 3 module `guard-paths.js`, `command-policy.js`, `plan-scope.js`). Áp dụng cơ chế **Scoped Protection (Phương án 2)** kết hợp **Plan Scope Guard** và **Token-Level Command Whitelist**:
+1. **Platform Hook Code Freeze Guard**: Chốt chặn tầng máy chủ phát triển (`.agents/hooks.json` và `.agents/scripts/code-freeze-guard.js` cùng 3 module `guard-paths.js`, `command-policy.js`, `plan-scope.js`). Áp dụng cơ chế **Scoped Protection (Phương án 2)** kết hợp **Plan Scope Guard** và **Token-Level Command Whitelist**:
    - Chỉ tự động cho phép ghi vào các file không nhạy cảm đã được khai báo rõ với nhãn `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` của plan đang được phê duyệt (`[PLAN_APPROVED]`); mọi file ngoài danh sách khai báo trả `ask`.
    - Kiểm tra lệnh `run_command` theo token whitelist nghiêm ngặt (`command-policy.js`), chặn PowerShell subexpressions `(...)`, Bash process substitution `<(...)`, smart quotes, và mọi truy cập `.env*` qua `git`/`Read`/`Grep`/`view_file`/`read_file`.
-   - Luôn luôn khóa và hỏi User (`ask`) với 6 danh mục file nhạy cảm (so khớp không phân biệt hoa thường): `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, hạ tầng harness/build `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.claude/**`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`), file test chịu Test Integrity Guard, và cấu hình quản trị `.agents/**`.
-2. **Zero-Self-Execution & Dual-Planner Architecture**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho **Primary Planner** (Claude Code CLI qua `.agents/scripts/run-claude.ps1 -Role planner` nạp `.agents/scripts/claude-planner-prompt.md`) hoặc **Fallback Planner** (Subagent `@planner` với `model: inherit` kế thừa `Gemini 4 Argon (High)` khi Claude CLI trả mã thoát `40/41/42`).
-3. **Dual-Reviewer Architecture, Cross-Model Critic & Uninterrupted Execution Chain**: Khâu thẩm định do **Primary Reviewer** (Subagent `@reviewer` với `model: inherit` kế thừa `Gemini 4 Argon (High)`) thực hiện và ghi trực tiếp vào `## Audit History`, với **Fallback Reviewer** là Claude Code CLI (`.agents/scripts/run-claude.ps1 -Role reviewer`). Với các kế hoạch chạm Bảo mật, Governance hoặc Database (`CRITIC_REQUIRED yes`), sau khi đạt chuẩn sơ bộ (`- **Status**: Awaiting Critic` + `[AWAITING_CRITIC]`), hệ thống chạy thêm bước **Cross-Model Critic** (`.agents/scripts/run-claude.ps1 -Role critic`) để phản biện chéo độc lập trước khi cấp `[PLAN_APPROVED]`. Luồng `[Task]` ➔ `[Planner]` ➔ `[Reviewer]` chạy tự động, liên tục tối đa 10 vòng lặp; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
+   - Luôn luôn khóa và hỏi User (`ask`) với 6 danh mục file nhạy cảm (so khớp không phân biệt hoa thường): `*.server.ts`, database migrations, cấu hình hạ tầng kiểm thử `TEST_INFRA_FILES`, hạ tầng harness/build `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`), file test chịu Test Integrity Guard, và cấu hình quản trị `.agents/**`.
+2. **Zero-Self-Execution & Gemini-Native Planner Architecture**: Orchestrator chỉ đóng vai trò điều phối viên; cấm tự lập kế hoạch trên luồng chính. Khâu lập kế hoạch bắt buộc 100% ủy quyền cho **Primary Planner** (Subagent `@planner` với `model: inherit` kế thừa `Gemini 4 Argon (High)`).
+3. **Gemini-Native Reviewer, Independent Critic Pass & Uninterrupted Execution Chain**: Khâu thẩm định do **Primary Reviewer** (Subagent `@reviewer` với `model: inherit` kế thừa `Gemini 4 Argon (High)`) thực hiện và ghi trực tiếp vào `## Audit History`. Với các kế hoạch chạm Bảo mật, Governance hoặc Database (`CRITIC_REQUIRED yes`), sau khi đạt chuẩn sơ bộ (`- **Status**: Awaiting Critic` + `[AWAITING_CRITIC]`), hệ thống chạy thêm bước **Independent Critic Pass** bằng một subagent `@reviewer` mới tinh (conversation ID mới, không chia sẻ lịch sử) để phản biện độc lập trước khi cấp `[PLAN_APPROVED]`. Luồng `[Task]` ➔ `[@planner]` ➔ `[@reviewer]` chạy tự động, liên tục tối đa 10 vòng lặp; cấm dừng giữa chừng để hỏi ý kiến người dùng khi chưa có thẻ `[PLAN_APPROVED]`.
 4. **Pre-Flight Gate**: Chốt chặn 3 cổng bắt buộc trước khi xuất phản hồi xin mở khóa viết code:
    - **Gate 1 - Plan Persistence**: Kế hoạch được ghi vào `docs/plans/`.
-   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi Lead Reviewer (`@reviewer` hoặc Fallback Claude Code CLI, kèm `-Role critic` nếu `CRITIC_REQUIRED yes`).
+   - **Gate 2 - Reviewer Dispatch**: Kế hoạch đã qua thẩm định trực tuyến độc lập bởi Lead Reviewer (`@reviewer`, kèm Independent Critic Pass bằng subagent `@reviewer` mới tinh nếu `CRITIC_REQUIRED yes`).
    - **Gate 3 - Reviewer Approval Token**: File kế hoạch có `- **Status**: Approved` ở Header, nhận thẻ `[PLAN_APPROVED]` ở dòng cuối cùng từ Lead Reviewer, và vượt qua `node scripts/verify-plan.mjs <plan>` (`exit 0`).
 5. **Circuit Breaker**: Sau 10 vòng lặp revision không đạt phê duyệt, Orchestrator tự động ngắt chuỗi và trình báo cáo tổng hợp lỗi tồn đọng lên User (PM) quyết định.
 
 ### Bộ 3 Tài Liệu Vệ Tinh & Script Kiểm Chứng Của @reviewer:
 
-- **`scripts/verify-plan.mjs`**: Script kiểm chứng tất định 7 heading bắt buộc của `## Technical Plan`, đối chiếu mọi trích dẫn `file:line` với codebase thật, phát hiện cờ `CRITIC_REQUIRED` (cho plan chạm Security, Governance, hoặc Database để kích hoạt Cross-Model Critic `-Role critic`), và kiểm tra sàn `#### Critic Findings` (tối thiểu 3 mục có `file:line` hợp lệ).
+- **`scripts/verify-plan.mjs`**: Script kiểm chứng tất định 7 heading bắt buộc của `## Technical Plan`, đối chiếu mọi trích dẫn `file:line` với codebase thật, phát hiện cờ `CRITIC_REQUIRED` (cho plan chạm Security, Governance, hoặc Database để kích hoạt Independent Critic Pass), và kiểm tra sàn `#### Critic Findings` (tối thiểu 3 mục có `file:line` hợp lệ).
 - **`allowlist.md`**: Quy định các nhóm lệnh `run_command` read-only được phép chạy để kiểm chứng kết luận (gồm cả `node scripts/verify-plan.mjs <plan-path>`). Cấm lệnh mutating.
 - **`evidence-bar.md`**: Chuẩn hóa 4 loại bằng chứng bắt buộc (`[CMD]`, `[SRC]`, `[ADV]`, `[URL]`), quy tắc `N/A` / `UNVERIFIED` / cấm tự trích plan / escalate severity, quy trình Negative Probe cho Zod/RLS/Redis, và Adversarial Timeline 4 trục.
 - **`mental-simulation.md`**: 6 kịch bản đối kháng bắt buộc S1–S6 (Cold-start, SSE streaming teardown, Supabase PostgreSQL temporal logic, cross-task state, 3-tier auth, external resilience & serverless cap 800s/60s/30s) và Domain Open Inquiry riêng cho Vikini.

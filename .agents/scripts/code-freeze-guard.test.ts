@@ -297,15 +297,16 @@ describe("decide — run_command", () => {
     }
   });
 
-  it("allows Claude CLI and run-claude script execution", () => {
+  it("asks on removed Claude CLI, run-claude.ps1, and visual-qa-runner.mjs commands (GC-01, GC-02)", () => {
     for (const command of [
       "powershell.exe -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1",
       "powershell -File .agents/scripts/run-claude.ps1 -PlanFile docs/plans/task.md",
       "powershell -ExecutionPolicy Bypass -File .agents\\scripts\\run-claude.ps1 -CheckOnly",
       "claude -p ping",
       "claude.exe --version",
+      "node scripts/visual-qa-runner.mjs --script tests/e2e/smoke.js",
     ]) {
-      expect(decide({ command }).decision, command).toBe("allow");
+      expect(decide({ command }).decision, command).toBe("ask");
     }
   });
 
@@ -936,32 +937,32 @@ describe("decide — Fast-Track Mode", () => {
   });
 });
 
-describe("decide — Dual-Planner & Dual-Reviewer workflow (SW-G1..SW-G8)", () => {
-  it("allows Primary Planner invocation via run-claude.ps1 -Role planner with -PlanFile and -Task (SW-G1)", () => {
-    expect(
-      decide({
-        command:
-          'powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md -Task "Draft plan"',
-      }).decision
-    ).toBe("allow");
+describe("decide — Gemini-Native workflow & removed Claude CLI blocking (SW-G1..SW-G8)", () => {
+  it("asks when removed run-claude.ps1 -Role planner is invoked (SW-G1 / GC-01)", () => {
+    const decision = decide({
+      command:
+        'powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md -Task "Draft plan"',
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("outside the read-only ALLOWLIST");
   });
 
-  it("allows Fallback Reviewer invocation via run-claude.ps1 -Role reviewer with -NoProfile (SW-G2)", () => {
-    expect(
-      decide({
-        command:
-          "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md",
-      }).decision
-    ).toBe("allow");
+  it("asks when removed run-claude.ps1 -Role reviewer with -NoProfile is invoked (SW-G2 / GC-01)", () => {
+    const decision = decide({
+      command:
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-19-swap-planner-reviewer-workflow-implementation-plan.md",
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("outside the read-only ALLOWLIST");
   });
 
-  it("allows -Mode plan, -Prompt, -ArtifactFile aliases and quoted script path (SW-G3)", () => {
-    expect(
-      decide({
-        command:
-          'powershell -ExecutionPolicy Bypass -File ".agents/scripts/run-claude.ps1" -Mode plan -PlanFile docs/plans/task.md -Prompt "Revise plan" -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md',
-      }).decision
-    ).toBe("allow");
+  it("asks when removed run-claude.ps1 -Mode plan alias is invoked (SW-G3 / GC-01)", () => {
+    const decision = decide({
+      command:
+        'powershell -ExecutionPolicy Bypass -File ".agents/scripts/run-claude.ps1" -Mode plan -PlanFile docs/plans/task.md -Prompt "Revise plan" -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md',
+    });
+    expect(decision.decision).toBe("ask");
+    expect(decision.reason).toContain("outside the read-only ALLOWLIST");
   });
 
   it("asks when run-claude.ps1 is chained with && and a mutating command (SW-G4)", () => {
@@ -1455,25 +1456,18 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
     });
   });
 
-  describe("TC-06 & TC-07: Command allowlist hardening (claude, run-claude.ps1, git difftool, config flags, verify-docs.mjs)", () => {
-    it("TC-06: allows safe claude probes, hyphenated test filenames (batch-c.test.ts), and valid run-claude.ps1 invocations", () => {
+  describe("TC-06 & TC-07: Command allowlist hardening (GC-01, GC-02, git difftool, config flags, verify-docs.mjs)", () => {
+    it("TC-06: allows hyphenated test filenames (batch-c.test.ts) while preserving read-only allowlist", () => {
       for (const cmd of [
-        "claude --version",
-        "claude -v",
-        "claude --help",
-        "claude -p ping",
-        'claude -p "ping"',
         "npx vitest run src/lib/features/chat/batch-c.test.ts",
         "npx vitest run src/lib/features/chat/part-u.test.ts",
         "npx vitest run src/lib/features/chat/item-i.test.ts",
-        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/task.md",
-        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md",
       ]) {
         expect(decide({ command: cmd }).decision, cmd).toBe("allow");
       }
     });
 
-    it("TC-06 Negative: blocks git difftool, --config/-c flags, claude bypass flags, and invalid run-claude.ps1 arguments", () => {
+    it("TC-06 Negative: blocks git difftool, --config/-c flags, removed claude/run-claude.ps1, and visual-qa-runner.mjs", () => {
       for (const badCmd of [
         'git difftool -y -x "node exploit.js" HEAD~1',
         "npx vitest run --config docs/plans/x.mjs",
@@ -1481,11 +1475,19 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         "npx vitest run --root docs/plans",
         "npx vitest run --dir docs/plans",
         "npx eslint --print-config src/a.ts -c docs/plans/x.mjs",
+        "claude --version",
+        "claude -v",
+        "claude --help",
+        "claude -p ping",
+        'claude -p "ping"',
         "claude -p 'edit src/app/page.tsx' --dangerously-skip-permissions",
         "claude --permission-mode bypassPermissions -p hi",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/task.md",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/conv/implementation_plan.md",
         "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile src/app/page.tsx",
         "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile src/app/page.tsx",
         "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/task.md -ArtifactFile C:/Users/wyemh/.gemini/antigravity/brain/../evil.md",
+        "node scripts/visual-qa-runner.mjs --script C:/Users/wyemh/.gemini/antigravity/brain/c1/scratch/qa.js",
       ]) {
         expect(decide({ command: badCmd }).decision, badCmd).toBe("ask");
       }
@@ -1511,7 +1513,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
     });
   });
 
-  describe("TC-08: Governance character limits, Normative Preservation Matrix & 4-layer run-claude.ps1 verification", () => {
+  describe("TC-08: Governance character limits, Normative Preservation Matrix & GC-04 Claude CLI removal", () => {
     it("enforces rule/agent character budgets and < 18,000 chars total for always_on rules", () => {
       const rulesDir = path.join(REPO_ROOT, ".agents", "rules");
       const ruleFiles = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
@@ -1600,7 +1602,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(r05).toContain("Pre-Flight Gate");
     });
 
-    it("verifies 4-layer defense in run-claude.ps1 and removal of .plan-approved in code-freeze-guard.js", () => {
+    it("verifies GC-04 removal of 10 Claude CLI files, SSOT skills retention, worktrees exclusions, and .plan-approved removal", () => {
       const guardSource = fs.readFileSync(
         path.join(REPO_ROOT, ".agents", "scripts", "code-freeze-guard.js"),
         "utf8"
@@ -1608,23 +1610,43 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(guardSource).not.toContain(".plan-approved");
       expect(guardSource).toContain("export function isPlanApproved()");
 
-      const ps1Source = fs.readFileSync(
-        path.join(REPO_ROOT, ".agents", "scripts", "run-claude.ps1"),
-        "utf8"
-      );
-      expect(ps1Source).not.toContain("--dangerously-skip-permissions");
-      expect(ps1Source).toContain('"--permission-mode", "dontAsk"');
-      expect(ps1Source).toContain('"--settings", $claudeHookSettings');
-      expect(ps1Source).toContain('"onFailure":"block"');
-      expect(ps1Source).toContain("Edit(docs/plans/*.md)");
-      expect(ps1Source).toContain('$disallowedTools = "Write,$sharedDisallowed"');
-      expect(ps1Source).toContain("Bash(git diff *)");
-      expect(ps1Source).not.toContain("Bash(git diff*)");
-      expect(ps1Source).toContain("Read(.env*),Read(**/.env*)");
-      expect(ps1Source).toContain("Bash(powershell *),Bash(pwsh *),Bash(claude *)");
-      expect(ps1Source).toContain("Bash(git difftool*),Bash(* --config*),Bash(* -c *)");
-      expect(ps1Source).toContain("[System.IO.Path]::IsPathRooted($trimmedArtifact)");
-      expect(ps1Source).toContain("$resolvedArtifactFile");
+      const removedClaudeCliFiles = [
+        ".agents/scripts/run-claude.ps1",
+        ".agents/scripts/claude-planner-prompt.md",
+        ".agents/scripts/claude-reviewer-prompt.md",
+        "CLAUDE.md",
+        ".claude/settings.json",
+        ".claude/settings.local.json",
+        ".claude/skills/vikini-debug/SKILL.md",
+        ".claude/skills/vikini-audit/SKILL.md",
+        ".claude/skills/vikini-investigate/SKILL.md",
+        ".claude/skills/vikini-simplify/SKILL.md",
+      ];
+      for (const rel of removedClaudeCliFiles) {
+        expect(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} must be deleted`).toBe(false);
+      }
+
+      for (const skill of [
+        "vikini-debug",
+        "vikini-audit",
+        "vikini-investigate",
+        "vikini-simplify",
+      ]) {
+        const ssotPath = path.join(REPO_ROOT, ".agents", "skills", skill, "SKILL.md");
+        expect(fs.existsSync(ssotPath), `SSOT skill ${skill} must exist`).toBe(true);
+      }
+
+      for (const cfg of [
+        "vitest.config.ts",
+        "eslint.config.mjs",
+        ".gitignore",
+        "scripts/verify-docs.mjs",
+      ]) {
+        const cfgText = fs.readFileSync(path.join(REPO_ROOT, cfg), "utf8");
+        expect(cfgText, `${cfg} must preserve .claude/worktrees exclusion`).toContain(
+          ".claude/worktrees"
+        );
+      }
     });
   });
 
@@ -1662,12 +1684,8 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(grepSafe.decision).toBe("allow");
     });
 
-    it("TC-D & TC-E: enforces PROTECTED_INFRA_FILES and case-insensitive NTFS checks while allowing Read", () => {
-      for (const p of [
-        ...PROTECTED_INFRA_FILES,
-        ".claude/skills/vikini-debug/SKILL.md",
-        ".husky/pre-push",
-      ]) {
+    it("TC-D & TC-E (GC-07 / NP-5): enforces PROTECTED_INFRA_FILES and case-insensitive NTFS checks while keeping Gate 9 Plan Scope Guard on removed Claude CLI paths", () => {
+      for (const p of [...PROTECTED_INFRA_FILES, ".husky/install.mjs", ".husky/pre-push"]) {
         expect(isProtectedInfraFile(p), p).toBe(true);
         const res = decide(
           { toolName: "Edit", targetFile: p },
@@ -1678,9 +1696,8 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       }
 
       for (const variant of [
-        "claude.md",
         "Agents.md",
-        ".Claude/Settings.json",
+        ".Husky/Install.MJS",
         "NEXT.CONFIG.TS",
         ".AGENTS/rules/00-core.md",
       ]) {
@@ -1691,6 +1708,16 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         expect(res.decision, variant).toBe("ask");
       }
 
+      for (const removedClaudePath of ["CLAUDE.md", ".claude/settings.json"]) {
+        expect(isProtectedInfraFile(removedClaudePath), removedClaudePath).toBe(false);
+        const undeclaredRes = decide(
+          { toolName: "Edit", targetFile: removedClaudePath },
+          { planApproved: true, approvedFiles: ["src/a.ts"] }
+        );
+        expect(undeclaredRes.decision, removedClaudePath).toBe("ask");
+        expect(undeclaredRes.reason, removedClaudePath).toContain("Plan Scope Guard");
+      }
+
       const pkgRes = decide(
         { toolName: "Edit", targetFile: "package.json" },
         { planApproved: true, approvedFiles: ["package.json"] }
@@ -1698,7 +1725,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(pkgRes.decision).toBe("ask");
       expect(pkgRes.reason).toContain("Test Infrastructure Guard");
 
-      for (const readableInfra of ["CLAUDE.md", "next.config.ts"]) {
+      for (const readableInfra of ["AGENTS.md", "next.config.ts"]) {
         expect(
           decide({ toolName: "Read", targetFile: readableInfra }, { planApproved: false }).decision
         ).toBe("allow");
@@ -1844,20 +1871,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(translationFetchText.decision).toBe("allow");
     });
 
-    it("TC-G4 & TC-G5: verifies run-claude.ps1 $PSScriptRoot hardening and existence of paths in streaming-patterns & mental-simulation", () => {
-      const ps1 = fs.readFileSync(
-        path.join(REPO_ROOT, ".agents", "scripts", "run-claude.ps1"),
-        "utf8"
-      );
-      expect(ps1).toContain("$PSScriptRoot");
-      expect(ps1).not.toContain("(Get-Location).Path");
-      expect(ps1).toContain("Push-Location -LiteralPath $repoRoot");
-      expect(ps1).toContain("Pop-Location");
-      expect(ps1).toContain("Bash(git *.env*)");
-      expect(ps1).toContain("Bash(git * --no-index*)");
-      expect(ps1).toContain("Edit(.claude/**)");
-      expect(ps1).toContain("PowerShell");
-
+    it("TC-G5: verifies existence of referenced source paths in streaming-patterns & mental-simulation", () => {
       for (const docRel of [
         ".agents/skills/streaming-patterns/SKILL.md",
         ".agents/agents/reviewer/mental-simulation.md",
@@ -1880,7 +1894,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       }
     });
 
-    it("TC-H & TC-I: verifies budget fixture, 02-quality table removal, 05-plan-review additions, and Claude Code surface", () => {
+    it("TC-H & TC-I (GC-05, GC-06, WP-4): verifies budget fixture, Gemini-Native governance surface, and Playwright anti-hang rules", () => {
       const computeAlwaysOnBudget = (entries: Array<{ content: string }>) =>
         entries
           .filter((e) => /^trigger:\s*always_on\s*$/m.test(e.content))
@@ -1891,6 +1905,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         path.join(REPO_ROOT, ".agents", "rules", "02-quality.md"),
         "utf8"
       );
+      const r03 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "03-ui.md"), "utf8");
       const r05 = fs.readFileSync(
         path.join(REPO_ROOT, ".agents", "rules", "05-plan-review.md"),
         "utf8"
@@ -1905,68 +1920,63 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
 
       const overBudgetFixture = computeAlwaysOnBudget([
         { content: r00 },
-        { content: r02 + "x".repeat(4000) },
+        { content: r02 + "x".repeat(6000) },
         { content: r05 },
       ]);
       expect(overBudgetFixture).toBeGreaterThanOrEqual(18000);
 
       expect(r02).not.toContain("| :---");
       expect(r05).toContain("Plan Scope Guard");
-      expect(r05).toContain("CLAUDE.md");
+      expect(r05).toContain("Independent Critic Pass");
+      expect(r03).toContain("visual-qa-runner.mjs");
+      expect(r03).toContain('stdio: "ignore"');
 
-      const claudeSettings = JSON.parse(
-        fs.readFileSync(path.join(REPO_ROOT, ".claude", "settings.json"), "utf8")
-      );
-      const preToolUse = claudeSettings?.hooks?.PreToolUse?.[0];
-      for (const tool of ["Bash", "PowerShell", "Read", "Grep", "Edit", "Write"]) {
-        expect(preToolUse?.matcher).toContain(tool);
+      const bannedClaudeCliPatterns = [
+        /run-claude\.ps1/i,
+        /\bCLAUDE\.md\b/,
+        /\.claude\/settings\.json/i,
+        /claude-planner-prompt\.md/i,
+        /claude-reviewer-prompt\.md/i,
+      ];
+
+      const activeGovernanceDocs = [
+        ".agents/rules/00-core.md",
+        ".agents/rules/01-coding.md",
+        ".agents/rules/02-quality.md",
+        ".agents/rules/05-plan-review.md",
+        ".agents/agents/planner/agent.md",
+        ".agents/agents/reviewer/agent.md",
+        ".agents/README.md",
+        "docs/architecture.md",
+      ];
+
+      for (const rel of activeGovernanceDocs) {
+        const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+        for (const pattern of bannedClaudeCliPatterns) {
+          expect(text, `${rel} must not match ${pattern}`).not.toMatch(pattern);
+        }
       }
-      expect(preToolUse?.hooks?.[0]?.onFailure).toBe("block");
-      expect(preToolUse?.hooks?.[0]?.args?.[0]).toMatch(
-        /\/\.agents\/scripts\/code-freeze-guard\.js$/
+
+      const plansReadme = fs.readFileSync(
+        path.join(REPO_ROOT, "docs", "plans", "README.md"),
+        "utf8"
       );
-      expect(claudeSettings?.permissions?.deny).toContain("Read(.env*)");
-
-      // .claude/settings.local.json is a gitignored, per-developer file: absent on clean CI checkouts.
-      const readOptionalText = (filePath: string): string =>
-        fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-
-      expect(readOptionalText(path.join(REPO_ROOT, ".claude", "__missing__.json"))).toBe("");
-
-      const localSettings = readOptionalText(
-        path.join(REPO_ROOT, ".claude", "settings.local.json")
-      );
-      for (const banned of ["git add", "git commit", "git push", "git checkout", "deep-research"]) {
-        expect(localSettings).not.toContain(banned);
+      const matrixHeading = "## Ma Trận Kế Hoạch Triển Khai";
+      const matrixIdx = plansReadme.indexOf(matrixHeading);
+      expect(matrixIdx).toBeGreaterThan(0);
+      const activeGuidancePart = plansReadme.slice(0, matrixIdx);
+      const historicalMatrixPart = plansReadme.slice(matrixIdx);
+      for (const pattern of bannedClaudeCliPatterns) {
+        expect(
+          activeGuidancePart,
+          `docs/plans/README.md guidance must not match ${pattern}`
+        ).not.toMatch(pattern);
       }
-
-      const claudeMd = fs.readFileSync(path.join(REPO_ROOT, "CLAUDE.md"), "utf8");
-      expect(claudeMd).toMatch(/^@\.agents\/rules\/00-core\.md$/m);
-      expect(claudeMd).toMatch(/^@\.agents\/rules\/05-plan-review\.md$/m);
-
-      for (const skill of [
-        "vikini-debug",
-        "vikini-audit",
-        "vikini-investigate",
-        "vikini-simplify",
-      ]) {
-        const srcSkill = fs.readFileSync(
-          path.join(REPO_ROOT, ".agents", "skills", skill, "SKILL.md"),
-          "utf8"
-        );
-        const stubSkill = fs.readFileSync(
-          path.join(REPO_ROOT, ".claude", "skills", skill, "SKILL.md"),
-          "utf8"
-        );
-        const srcDesc = srcSkill.match(/^description:\s*(.+)$/m)?.[1];
-        const stubDesc = stubSkill.match(/^description:\s*(.+)$/m)?.[1];
-        expect(stubDesc, skill).toBeDefined();
-        expect(stubDesc, skill).toBe(srcDesc);
-        expect(stubSkill, skill).toContain(`.agents/skills/${skill}/SKILL.md`);
-      }
+      expect(historicalMatrixPart).toContain("2026-10-24");
 
       const gitignore = fs.readFileSync(path.join(REPO_ROOT, ".gitignore"), "utf8");
-      expect(gitignore).toContain("!.claude/skills/vikini-*/");
+      expect(gitignore).toContain(".claude/worktrees/");
+      expect(gitignore).not.toContain("!.claude/skills/vikini-*/");
       expect(gitignore).toContain("/.superpowers/");
       expect(gitignore).toContain("*.tmp.md");
     });

@@ -12,7 +12,7 @@ description: Plan-Review-Revise loop, Code Freeze enforcement, Fast-Track mode, 
 - **Chính Sách Scoped Protection (Hook `PreToolUse` tại `.agents/scripts/code-freeze-guard.js`)**:
   1. _Chưa có `[PLAN_APPROVED]`_: Chặn và hỏi (`ask`) mọi thao tác ghi `src/**` hoặc lệnh ngoài allowlist, **trừ Fast-Track §1.1**.
   2. _Đã có `[PLAN_APPROVED]` (**Plan Scope Guard**)_: Chỉ cho phép (`allow`) ghi vào file không nhạy cảm đã khai báo `[NEW]`/`[MODIFY]`/`[DELETE]` trong `## Technical Plan` đang Approved; ngoài danh sách trả `ask`.
-  3. _6 Danh Mục Nhạy Cảm Luôn Khóa (`ask`)_: (a) `*.server.ts`, (b) migrations (`supabase/migrations/`, `database-migrations/`, `*.sql`), (c) `TEST_INFRA_FILES` (`vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tests/setup.ts`, `tsconfig.json`), (d) test files (`*.test.ts(x)`, `*.spec.ts(x)`), (e) `.agents/**`, (f) `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.claude/**`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`, `CLAUDE.md`).
+  3. _6 Danh Mục Nhạy Cảm Luôn Khóa (`ask`)_: (a) `*.server.ts`, (b) migrations (`supabase/migrations/`, `database-migrations/`, `*.sql`), (c) `TEST_INFRA_FILES` (`vitest.config.ts`, `eslint.config.mjs`, `package.json`, `tests/setup.ts`, `tsconfig.json`), (d) test files (`*.test.ts(x)`, `*.spec.ts(x)`), (e) `.agents/**`, (f) `PROTECTED_INFRA_FILES` (`scripts/code-freeze-guard.js`, `.husky/**`, `next.config.ts`, `package-lock.json`, `.npmrc`, `AGENTS.md`).
 
 ### 1.1 Fast-Track Mode (Micro-UI & Translation Edits)
 
@@ -25,21 +25,18 @@ Cho phép thực thi trực tiếp (`allow`) không cần plan khi thỏa đồn
 
 **4 Nghĩa vụ**: (1) Đọc `SKILL.md` (`.agents/skills/add-translation/SKILL.md`), (2) Dòng đầu ghi: `📌 [Fast-Track | Skills: <tên-skill>]`, (3) Chạy `npm run type-check`, (4) Cấm chia nhỏ tính năng lớn thành nhiều lần gọi `<= 40` dòng (`[BLOCKER]`).
 
-## 2. Nguyên Tắc "Zero-Self-Execution" & Kiến Trúc Dual-Planner 2 Kênh
+## 2. Nguyên Tắc "Zero-Self-Execution" & Kiến Trúc Planner Gemini-Native
 
 - Orchestrator chỉ điều phối, cấm tự viết plan hay tự cấp `[PLAN_APPROVED]`:
-  1. **Primary Planner (Claude CLI)**: `.agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/<task>.md -Task "<yêu cầu>"`.
-  2. **Fallback Planner (`@planner`)**: Chuyển sang `.agents/agents/planner/agent.md` khi Claude CLI báo `exit 40/41/42` (`[CLAUDE_PRO_QUOTA_EXCEEDED]`).
+  - **Primary Planner (`@planner`)**: Thực thi bằng subagent `.agents/agents/planner/agent.md` (`model: inherit` / `gemini-4-argon` High) — khảo sát codebase, tra cứu công nghệ trực tuyến và soạn/cập nhật `docs/plans/<task>.md`.
 
-## 3. Kiến Trúc Dual-Reviewer 2 Kênh & Chuỗi Chuyển Tiếp
+## 3. Kiến Trúc Reviewer Gemini-Native & Independent Critic Pass
 
 1. **Primary Reviewer (`@reviewer`)**: Thẩm định theo Objective/Fail Criteria tại `.agents/agents/reviewer/agent.md`; chạy `node scripts/verify-plan.mjs <plan>` và nêu `>= 3` mục `#### Critic Findings` (`file:line`); dùng `replace_file_content`/`edit_file` nối `### Audit Run [X+1]` vào `## Audit History` và cập nhật `- **Status**:`.
-2. **Fallback Reviewer (Claude CLI)**: Khi `@reviewer` chạm quota, gọi `.agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/<task>.md` (`--permission-mode dontAsk`, gắn hook `code-freeze-guard.js` với `"onFailure": "block"`, chỉ cấp `Edit(docs/plans/*.md)` và chặn `Write`).
-3. **Uninterrupted Execution Chain**: Vòng lặp Planner ↔ Reviewer chạy tự động liên tục, tối đa **10 vòng lặp revision** trước khi bật Circuit Breaker trình User.
-4. **Cross-Model Critic Pass**: Khi plan chạm Bảo mật (`*.server.ts`, auth, proxy/middleware, `next.config.ts`), Governance (`.agents/**`, `.claude/**`, `.husky/**`, `AGENTS.md`, `CLAUDE.md`, `scripts/code-freeze-guard.js`), hoặc Database (`supabase/`, `database-migrations/`, `*.sql`) — phát hiện qua `CRITIC_REQUIRED yes`:
-   - Khi đạt chuẩn, `@reviewer` đặt `- **Status**: Awaiting Critic` (giữ khóa repo) và kết thúc bằng `[AWAITING_CRITIC]`.
-   - Orchestrator gọi `.agents/scripts/run-claude.ps1 -Role critic -PlanFile docs/plans/<task>.md`: `AGREE` ➔ `- **Status**: Approved` + `[PLAN_APPROVED]` dòng cuối; `DISAGREE_EVIDENCE` (`>= 1` lỗi `[BLOCKER]`/`[MAJOR]` kèm `[SRC]`/`[CMD]`) ➔ `- **Status**: Changes Requested` + `[CHANGES_REQUESTED]`.
-   - Nếu `-Role critic` chạm quota (`exit 42`) ➔ bật Circuit Breaker. Nếu Claude Fallback Reviewer duyệt sơ bộ (`Awaiting Critic`), gọi `@reviewer` ở Cross-Model Critic Mode.
+2. **Uninterrupted Execution Chain**: Vòng lặp `@planner` ↔ `@reviewer` chạy tự động liên tục, tối đa **10 vòng lặp revision** trước khi bật Circuit Breaker trình User.
+3. **Independent Critic Pass**: Khi plan chạm Bảo mật (`*.server.ts`, auth, proxy/middleware, `next.config.ts`), Governance (`.agents/**`, `.husky/**`, `AGENTS.md`, `scripts/code-freeze-guard.js`), hoặc Database (`supabase/`, `database-migrations/`, `*.sql`) — phát hiện qua `CRITIC_REQUIRED yes`:
+   - Khi đạt chuẩn Audit Run 1..N, Primary `@reviewer` đặt `- **Status**: Awaiting Critic` (giữ khóa repo fail-safe) và kết thúc bằng `[AWAITING_CRITIC]`.
+   - Orchestrator khởi chạy một subagent **`@reviewer` độc lập mới hoàn toàn** (conversation ID mới, zero shared history với vòng trước) ở **Independent Critic Mode** (`.agents/agents/reviewer/agent.md` §8): `CRITIC_VERDICT: AGREE` ➔ `- **Status**: Approved` + `[PLAN_APPROVED]` dòng cuối; `CRITIC_VERDICT: DISAGREE_EVIDENCE` (`>= 1` lỗi `[BLOCKER]`/`[MAJOR]` kèm `[SRC]`/`[CMD]`) ➔ `- **Status**: Changes Requested` + `[CHANGES_REQUESTED]` quay lại `@planner`.
 
 ## 4. Tiêu Chuẩn Thẩm Định & Thang Đo Lỗi (Severity Rubric)
 
@@ -60,5 +57,5 @@ Mọi file `docs/plans/*.md` (**Single Source of Truth**) gồm `## Technical Pl
 
 ## 6. Checklist Pre-Flight Gate & Nghiệm Thu @qa (§7)
 
-- **Pre-Flight Gate**: (1) **Gate 1 - Plan Persistence** (`docs/plans/`), (2) **Gate 2 - Reviewer Dispatch** (`@reviewer` / Claude CLI + `-Role critic`), (3) **Gate 3 - Reviewer Approval Token** (`Status: Approved` + `[PLAN_APPROVED]` + `node scripts/verify-plan.mjs <plan>` exit 0).
+- **Pre-Flight Gate**: (1) **Gate 1 - Plan Persistence** (`docs/plans/`), (2) **Gate 2 - Reviewer Dispatch** (`@reviewer` + Fresh Independent `@reviewer` Critic Pass khi `CRITIC_REQUIRED yes`), (3) **Gate 3 - Reviewer Approval Token** (`Status: Approved` + `[PLAN_APPROVED]` + `node scripts/verify-plan.mjs <plan>` exit 0).
 - **Tác Tử `@qa` (On-Demand)**: Kích hoạt khi user gõ `@qa`; xuất `[QA_PASSED]` hoặc `[QA_FAILED]`.

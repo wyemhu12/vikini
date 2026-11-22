@@ -100,18 +100,15 @@ export const TEST_INFRA_FILES = [
 /** Harness, build, and hook configuration files that must always require confirmation (P0-3). */
 export const PROTECTED_INFRA_FILES = [
   "scripts/code-freeze-guard.js",
-  ".claude/settings.json",
-  ".claude/settings.local.json",
   ".husky/install.mjs",
   "next.config.ts",
   "package-lock.json",
   ".npmrc",
   "AGENTS.md",
-  "CLAUDE.md",
 ];
 
 /** Directory prefixes that belong to protected harness/hook infrastructure (P0-3). */
-export const PROTECTED_INFRA_PREFIXES = [".claude/", ".husky/"];
+export const PROTECTED_INFRA_PREFIXES = [".husky/"];
 
 /**
  * Checks if targetFile is a valid Antigravity artifact path outside the repo.
@@ -565,7 +562,7 @@ export function decide(input, options = {}) {
         [
           "\u26a0\ufe0f Code Freeze Guard: write targets a frozen path.",
           `Path: ${relative}`,
-          "Approve only if [PLAN_APPROVED] has been granted by Lead Reviewer (@reviewer or Claude CLI fallback).",
+          "Approve only if [PLAN_APPROVED] has been granted by Lead Reviewer (@reviewer).",
         ].join("\n")
       );
     }
@@ -725,8 +722,8 @@ export function extractInput(payload) {
 }
 
 /**
- * Formats the guard decision for either Google Antigravity hooks (`{ decision, reason }`)
- * or Claude Code CLI `PreToolUse` hooks (`{ hookSpecificOutput }` or `null` on allow).
+ * Formats the guard decision for Google Antigravity hooks (`{ decision, reason }`)
+ * or generic `PreToolUse` hook protocols (`{ hookSpecificOutput }` or `null` on allow).
  *
  * @param {GuardDecision} result
  * @param {unknown} rawPayload

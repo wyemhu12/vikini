@@ -229,7 +229,7 @@ function validateGitArgs(rest) {
 }
 
 /**
- * Shared validator for `docs/plans/<name>.md` tokens (used by -PlanFile and verify-plan.mjs).
+ * Shared validator for `docs/plans/<name>.md` tokens (used by verify-plan.mjs).
  *
  * @param {CommandToken | undefined} tok
  * @param {{ requireUnquoted?: boolean }} [options]
@@ -245,137 +245,6 @@ function validatePlanPathToken(tok, options = {}) {
     return { ok: false, kind: "allowlist" };
   }
   return { ok: true };
-}
-
-/**
- * Validates arguments after `powershell(.exe)?` for `.agents/scripts/run-claude.ps1`.
- *
- * @param {CommandToken[]} rest
- * @returns {{ ok: true } | { ok: false, kind: 'escape' | 'env' | 'allowlist' }}
- */
-function validateRunClaudeArgs(rest) {
-  let idx = 0;
-  let sawFile = false;
-
-  while (idx < rest.length) {
-    const tok = rest[idx];
-    if (tok.quote !== "none") return { ok: false, kind: "allowlist" };
-    const lower = tok.value.toLowerCase();
-
-    if (lower === "-noprofile") {
-      idx++;
-    } else if (lower === "-executionpolicy") {
-      const next = rest[idx + 1];
-      if (
-        !next ||
-        next.quote !== "none" ||
-        !/^(?:bypass|remotesigned|unrestricted)$/i.test(next.value)
-      ) {
-        return { ok: false, kind: "allowlist" };
-      }
-      idx += 2;
-    } else if (lower === "-file") {
-      const scriptTok = rest[idx + 1];
-      if (!scriptTok || !/^\.agents[/\\]scripts[/\\]run-claude\.ps1$/i.test(scriptTok.value)) {
-        return { ok: false, kind: "allowlist" };
-      }
-      sawFile = true;
-      idx += 2;
-      break;
-    } else {
-      return { ok: false, kind: "allowlist" };
-    }
-  }
-
-  if (!sawFile) return { ok: false, kind: "allowlist" };
-
-  while (idx < rest.length) {
-    const paramTok = rest[idx];
-    if (paramTok.quote !== "none") return { ok: false, kind: "allowlist" };
-    const param = paramTok.value.toLowerCase();
-
-    if (param === "-checkonly") {
-      idx++;
-    } else if (param === "-role" || param === "-mode") {
-      const valTok = rest[idx + 1];
-      if (
-        !valTok ||
-        valTok.quote !== "none" ||
-        !/^(?:planner|reviewer|plan|review|critic)$/i.test(valTok.value)
-      ) {
-        return { ok: false, kind: "allowlist" };
-      }
-      idx += 2;
-    } else if (param === "-planfile") {
-      const check = validatePlanPathToken(rest[idx + 1]);
-      if (!check.ok) return check;
-      idx += 2;
-    } else if (param === "-model") {
-      const valTok = rest[idx + 1];
-      if (!valTok || valTok.quote !== "none" || !/^[A-Za-z0-9._-]+$/.test(valTok.value)) {
-        return { ok: false, kind: "allowlist" };
-      }
-      idx += 2;
-    } else if (param === "-artifactfile") {
-      const valTok = rest[idx + 1];
-      if (!valTok) return { ok: false, kind: "allowlist" };
-      if (isEnvSecretPath(valTok.value)) return { ok: false, kind: "env" };
-      if (
-        valTok.value.includes("..") ||
-        !/^[^\s"']*[/\\]\.gemini[/\\]antigravity[/\\]brain[/\\][^\s"']+\.md$/i.test(valTok.value)
-      ) {
-        return { ok: false, kind: "allowlist" };
-      }
-      idx += 2;
-    } else if (param === "-task" || param === "-prompt") {
-      const valTok = rest[idx + 1];
-      if (!valTok || !valTok.value) return { ok: false, kind: "allowlist" };
-      if (valTok.quote === "double") {
-        // Double-quoted Task must not contain backslash, $, `, or "
-        if (
-          valTok.value.includes("\\") ||
-          valTok.value.includes("$") ||
-          valTok.value.includes("`")
-        ) {
-          return { ok: false, kind: "allowlist" };
-        }
-      } else if (valTok.quote === "none") {
-        if (!isSafeUnquotedToken(valTok.value) || valTok.value.startsWith("@")) {
-          return { ok: false, kind: "allowlist" };
-        }
-      }
-      idx += 2;
-    } else {
-      return { ok: false, kind: "allowlist" };
-    }
-  }
-
-  return { ok: true };
-}
-
-/**
- * Validates arguments after `claude(.exe)?`.
- *
- * @param {CommandToken[]} rest
- * @returns {{ ok: true } | { ok: false, kind: 'escape' | 'env' | 'allowlist' }}
- */
-function validateClaudeProbe(rest) {
-  if (
-    rest.length === 1 &&
-    rest[0].quote === "none" &&
-    /^(?:--version|-v|--help|-h)$/i.test(rest[0].value)
-  ) {
-    return { ok: true };
-  }
-  if (
-    rest.length === 2 &&
-    rest[0].quote === "none" &&
-    /^-p$/i.test(rest[0].value) &&
-    rest[1].value.toLowerCase() === "ping"
-  ) {
-    return { ok: true };
-  }
-  return { ok: false, kind: "allowlist" };
 }
 
 /**
@@ -490,17 +359,7 @@ function evaluateSingleSegment(segment) {
     return { ok: false, kind: "allowlist" };
   }
 
-  // 4. powershell(.exe)? ... -File .agents/scripts/run-claude.ps1
-  if (/^powershell(?:\.exe)?$/i.test(t0.value)) {
-    return validateRunClaudeArgs(tokens.slice(1));
-  }
-
-  // 5. claude(.exe)? probe
-  if (/^claude(?:\.exe)?$/i.test(t0.value)) {
-    return validateClaudeProbe(tokens.slice(1));
-  }
-
-  // 6. node scripts/verify-docs.mjs
+  // 4. node scripts/verify-docs.mjs
   if (t0.value === "node" && t1 && /^(?:\.[/\\])?scripts[/\\]verify-docs\.mjs$/.test(t1.value)) {
     const rest = tokens.slice(2);
     for (const tok of rest) {

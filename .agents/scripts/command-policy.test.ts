@@ -123,17 +123,18 @@ describe("command-policy (P0-1 & P1-5)", () => {
     });
   });
 
-  describe("TC-B: P0-1 Positive Probes", () => {
-    it("allows single-quoted and double-quoted -Task strings with parentheses, semicolons, and Vietnamese text", () => {
+  describe("TC-B: P0-1 Positive Probes (GC-03)", () => {
+    it("allows read-only git, npm view, vitest, verification chains, and docs/plan scripts", () => {
       for (const cmd of [
-        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/x.md -Task 'Lập kế hoạch: sửa (P0-1), giữ \"quotes\"; ok'",
-        'powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/x.md -Task "Revise plan (rev 2), keep scope"',
+        "git status",
         "git blame -L 10,20 src/a.ts",
         "git log --oneline -n 20 -- src/a.ts",
         "git show HEAD~1:src/a.ts",
         "npm view @types/node version",
         'npx vitest run "src/app/api/deep-research/[taskId]/route.test.ts"',
         "npm run type-check; npm run lint; npm run test:run",
+        "node scripts/verify-plan.mjs docs/plans/x.md",
+        "node scripts/verify-docs.mjs",
       ]) {
         const res = evaluateCommand(cmd);
         expect(res, cmd).toEqual({ ok: true });
@@ -231,38 +232,39 @@ describe("command-policy (P0-1 & P1-5)", () => {
       }
     });
 
-    it("TC-D4: allows run-claude.ps1 with -Role critic", () => {
-      expect(
-        evaluateCommand(
-          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role critic -PlanFile docs/plans/x.md"
-        )
-      ).toEqual({ ok: true });
+    it("TC-D4 (GC-01 / NP-1): blocks all removed run-claude.ps1 and claude CLI invocations", () => {
+      for (const cmd of [
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -PlanFile docs/plans/x.md",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-25-plan.md",
+        "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role critic -PlanFile docs/plans/x.md",
+        "powershell -ExecutionPolicy Bypass -File .agents\\scripts\\run-claude.ps1 -CheckOnly",
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role planner -Task 'Draft'",
+        "claude --version",
+        "claude -v",
+        "claude --help",
+        "claude -p ping",
+        "claude.exe -v",
+      ]) {
+        const res = evaluateCommand(cmd);
+        expect(res.ok, cmd).toBe(false);
+        if (!res.ok) {
+          expect(res.reason.length, cmd).toBeGreaterThan(0);
+        }
+      }
     });
 
-    it("TC-D5: blocks invalid or quoted critic roles", () => {
-      expect(
-        evaluateCommand(
-          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role critics -PlanFile docs/plans/x.md"
-        ).ok
-      ).toBe(false);
-      expect(
-        evaluateCommand(
-          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role 'critic' -PlanFile docs/plans/x.md"
-        ).ok
-      ).toBe(false);
-    });
-
-    it("TC-D6: preserves existing -PlanFile validation behavior after helper extraction", () => {
-      expect(
-        evaluateCommand(
-          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/2026-10-25-plan.md"
-        )
-      ).toEqual({ ok: true });
-      expect(
-        evaluateCommand(
-          "powershell -ExecutionPolicy Bypass -File .agents/scripts/run-claude.ps1 -Role reviewer -PlanFile docs/plans/../secret.md"
-        ).ok
-      ).toBe(false);
+    it("TC-D5 (GC-02 / NP-2): blocks visual-qa-runner.mjs to prevent Code Freeze bypass via scratch JS", () => {
+      for (const cmd of [
+        "node scripts/visual-qa-runner.mjs --script tests/e2e/smoke.js",
+        "node ./scripts/visual-qa-runner.mjs --script tests/e2e/smoke.mjs",
+        "node scripts\\visual-qa-runner.mjs --script C:/Users/wyemh/.gemini/antigravity/brain/c1/scratch/qa.js",
+      ]) {
+        const res = evaluateCommand(cmd);
+        expect(res.ok, cmd).toBe(false);
+        if (!res.ok) {
+          expect(res.reason, cmd).toContain("outside the read-only ALLOWLIST");
+        }
+      }
     });
   });
 });

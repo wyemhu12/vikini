@@ -1,6 +1,6 @@
 # Implementation Plan: Public Google Docs / Sheets / Slides Auto-Resolution & Claude Native PDF Support
 
-- **Status**: Approved
+- **Status**: Completed
 - **Revision**: 3
 - **Date**: 2026-11-22
 - **Author**: Subagent @planner ([PLANNER_MODEL: gemini-4-argon])
@@ -558,31 +558,31 @@ export function mapContentsToAnthropicMessages(
 
 ### 7. Các Bước Thực Hiện Tuần Tự (Implementation Steps)
 
-- [ ] **Bước 1 — Model Capability SSOT (`modelRegistry.ts`)**:
+- [x] **Bước 1 — Model Capability SSOT (`modelRegistry.ts`)**:
   - Thêm `PdfCapability` và `getModelPdfCapability(modelId, options?)` kiểm tra raw string trước `normalizeModelForApi()` (`anthropic/claude*` → luôn `"openrouter-claude"`, `claude-*` dùng `options?.hasAnthropicApiKey ?? Boolean(process.env.ANTHROPIC_API_KEY)`, `gemini-*` (trừ image) → `"gemini"`, còn lại → `"text-only"`) trong `src/lib/core/modelRegistry.ts`.
   - Bổ sung unit test cho toàn bộ 12 model, `anthropic/claude-sonnet-5.5`, `anthropic/claude-haiku-5.5`, `claude-3-7-sonnet`, `{ hasAnthropicApiKey: false }`, và model lạ trong `src/lib/core/modelRegistry.test.ts`.
-- [ ] **Bước 2 — Pure Google Workspace URL Parser (`googleDocsUrl.ts`)**:
+- [x] **Bước 2 — Pure Google Workspace URL Parser (`googleDocsUrl.ts`)**:
   - Tạo `src/lib/features/chat/googleDocsUrl.ts` hỗ trợ phát hiện, chuẩn hóa, khử trùng lặp, giới hạn `MAX_GOOGLE_DOCS_LINKS_PER_MESSAGE = 3`, xác thực `gid` (`/^\d{1,20}$/`) & `tab` (`/^[A-Za-z0-9._-]{1,64}$/`), build export URLs (`pdf`/`txt`/`xlsx`/`csv`) bằng `URLSearchParams`, `isAllowedGoogleExportHost()`, `isGoogleAuthRedirectHost()`.
   - Tạo `src/lib/features/chat/googleDocsUrl.test.ts` phủ toàn bộ positive/negative cases.
-- [ ] **Bước 3 — Hardened Server-Only Resolver (`googleDocsResolver.server.ts`)**:
+- [x] **Bước 3 — Hardened Server-Only Resolver (`googleDocsResolver.server.ts`)**:
   - Tạo `src/lib/features/chat/googleDocsResolver.server.ts` tái sử dụng `validateSafeUrl()` (`ssrfGuard.server.ts`), chặn `username`/`password`/cổng khác `443` ở từng hop, `parseXlsxWithExcelJs()` / `stripNulCharacters()` / `isBinaryCorruptText()` (`documentParsers.ts`), `sanitizeFilename()` (`fileValidation.ts`), `estimateTokens()` / `estimateCharBudget()` (`tokenEstimate.ts`), và `uploadToGemini()` / `waitForGeminiFileActive()` (`geminiFiles.server.ts`) + `cleanupTempGeminiFiles()`; tuyệt đối không gắn `filename` vào Gemini `Part`.
   - Tạo `src/lib/features/chat/googleDocsResolver.server.test.ts` phủ đủ fallback PDF→TXT (`7168×9600`), XLSX→CSV, Zip-Bomb, SSRF redirect / userinfo / cổng không chuẩn, Private/401/403/HTML login, Gemini inline vs Files API cleanup + assertion không có `filename`, Strata text-only budget, delimiter escaping, và AbortSignal teardown.
-- [ ] **Bước 4 — Claude Native PDF Mapper, Post-Processing Merge & Attachment Processor Upgrade**:
+- [x] **Bước 4 — Claude Native PDF Mapper, Post-Processing Merge & Attachment Processor Upgrade**:
   - Tạo `src/app/api/chat-stream/streaming/anthropic-message-mapper.ts` + `anthropic-message-mapper.test.ts`.
   - Cập nhật `src/app/api/chat-stream/streaming/types.ts` (`MessagePart`, `ChatStreamParams`).
   - Cập nhật `src/app/api/chat-stream/streaming/post-processing.ts` + `post-processing.test.ts` (`mergeUrlContextEntries()` và nâng cấp `processUrlContextMetadata()` chống ghi đè SSE `urlContext`).
   - Cập nhật `src/app/api/chat-stream/attachmentProcessor.ts` + `attachmentProcessor.test.ts`: hỗ trợ Native PDF cho Claude (Direct `<= 20 MB`, OpenRouter `<= 15 MB`, tổng lượt `<= 25 MB`, pre-check `f.size_bytes` trước `downloadFileBytes()`, không gắn `filename` cho Gemini) với fallback `extracted_text`, trả về `remainingTokens` & `pdfBytesUsed`.
-- [ ] **Bước 5 — Cập Nhật 5 Stream Engines & `chatStreamCore.ts`**:
+- [x] **Bước 5 — Cập Nhật 5 Stream Engines & `chatStreamCore.ts`**:
   - Cập nhật `anthropic-stream.ts` + `anthropic-stream.test.ts` (dùng `mapContentsToAnthropicMessages()`, truyền `initialUrlContext` vào `sendInitialMetaEvents()`, `savePartialOnce()`, và `processPostStream()`).
   - Cập nhật `openai-stream.ts` + `openai-stream.test.ts` (`hasSupportedBinaryParts` thay `hasImages` giữ `content: string` cho non-Claude, OpenRouter Claude `type: "file"` + điều kiện gắn `plugins` chỉ khi `isOpenRouterClaude && hasOpenRouterPdf`, truyền `initialUrlContext` vào `sendInitialMetaEvents()`, `savePartialOnce()`, và `processPostStream()`).
   - Cập nhật `deepseek-stream.ts` + `deepseek-stream.test.ts` (`hasSupportedImages` giữ `content: string` khi PDF bị lọc, truyền `initialUrlContext` vào `sendInitialMetaEvents()`, `savePartialOnce()`, và `processPostStream()`).
   - Cập nhật `gemini-stream.ts` + `gemini-stream.test.ts` (`sanitizeGeminiContents()` lược bỏ `filename`, phát `initialUrlContext`, gọi `processUrlContextMetadata(..., initialUrlContext)` kèm guard `Array.isArray(...)`, lưu `initialUrlContext` trong `savePartialOnce()`, dọn `onStreamFinally` idempotent trong `finally` và `void runOnStreamFinallyOnce().catch(() => {})` trong `cancel()`).
   - Cập nhật `strata-stream.ts` + `strata-stream.test.ts` (truyền `initialUrlContext` vào `sendInitialMetaEvents()`, `savePartialOnce()`, và `processPostStream()`).
   - Cập nhật `chatStreamCore.ts` + `chatStreamCore.test.ts` (nối `chartProtocol`, tính ngân sách Strata qua `Math.floor(resolveStrataThinkingPlan(thinkingLevel, getStrataConfig().contextWindow).promptBudgetTokens / 1.25)` trừ riêng token lượt hiện tại, nối `resolveGoogleWorkspaceLinks()`, cleanup `tempGeminiFileNames` ở mọi nhánh thoát sớm).
-- [ ] **Bước 6 — Bilingual Translations & UI Chip Feedback**:
+- [x] **Bước 6 — Bilingual Translations & UI Chip Feedback**:
   - Thêm 7 khóa dịch đối xứng vào `src/lib/utils/translations/vi.ts` và `src/lib/utils/translations/en.ts`.
   - Cập nhật `src/app/features/chat/components/ChatBubble.tsx` (thêm `b.meta?.urlContext` fallback, `p.urlContext === n.urlContext` trong `React.memo`, truyền `urlContext`, giảm xuống `~493` dòng) và `src/app/features/chat/components/SourceLinks.tsx` (render chip Google Workspace theo Vikini 3.0 tokens + `focus-visible:ring-2 focus-visible:ring-(--ring)` + không `uppercase` + Lucide icons + `sanitizeUrl`).
-- [ ] **Bước 7 — Living Docs, Full Verification & Playwright Visual QA**:
+- [x] **Bước 7 — Living Docs, Full Verification & Playwright Visual QA**:
   - Cập nhật `docs/contracts.md`, `docs/features.md`, `docs/security.md`, và `docs/CHANGELOG.md`.
   - Chạy `npm run type-check; npm run lint; npm run test:run` và Playwright Visual QA (Desktop `1440×900` & Mobile `375×812` × Dark/Light) + soi từng ảnh `.png` bằng `read_file`.
 
@@ -637,6 +637,7 @@ Mọi test case dưới đây bắt buộc có mặt trong các file `*.test.ts`
 #### Lệnh Kiểm Chứng (Windows PowerShell 5.1 — dùng `;`, cấm `&&`)
 
 1. **Wiring Probes (Chứng minh rule/guard có hiệu lực trên đường dẫn mục tiêu — `evidence-bar.md` §4.5.3)**:
+
    ```powershell
    npx eslint --print-config src/lib/features/chat/googleDocsResolver.server.ts
    npx eslint --print-config src/app/features/chat/components/SourceLinks.tsx
@@ -644,18 +645,23 @@ Mọi test case dưới đây bắt buộc có mặt trong các file `*.test.ts`
    ```
 
    - Xác nhận `@typescript-eslint/no-explicit-any` và `@typescript-eslint/no-floating-promises` ở mức `error`, `no-console` cấm `console.log`, và các rule `vikini-design/*` (gồm `vikini-design/no-uppercase`) có hiệu lực trên `SourceLinks.tsx` / `ChatBubble.tsx`.
+
 2. **Targeted Co-Located & Negative Probes**:
+
    ```powershell
    npx vitest run --reporter=dot src/lib/features/chat/googleDocsUrl.test.ts src/lib/features/chat/googleDocsResolver.server.test.ts src/app/api/chat-stream/streaming/anthropic-message-mapper.test.ts src/lib/core/modelRegistry.test.ts src/app/api/chat-stream/attachmentProcessor.test.ts src/app/api/chat-stream/chatStreamCore.test.ts src/app/api/chat-stream/route.test.ts src/app/api/chat-stream/streaming/ src/app/api/messages/route.test.ts src/lib/core/ssrfGuard.server.test.ts src/lib/features/files/documentParsers.test.ts src/lib/features/local-llm/strataContextFit.test.ts
    ```
 
    - Xác nhận toàn bộ Negative Probes đạt: **TC-GD-03** (spoofed host, embedded query URL, invalid `gid`/`tab`), **TC-GD-09** (private/login redirect), **TC-GD-10** (SSRF hop `169.254.169.254`, userinfo, cổng `8443`, RFC 1918 DNS), **TC-GD-11** (delimiter breakout), **TC-CL-02** (non-Claude models giữ `typeof content === "string"`, OpenRouter Claude text-only không gắn `plugins`), **TC-CL-03** (Strata Local không nhận `inlineData`, PDF `> 20 MB` không gọi `downloadFileBytes()`), **TC-CL-04** (Gemini `Part` không chứa `filename`, `processUrlContextMetadata` không ghi đè chip Google Docs khi native `[]`).
+
 3. **Full Quality Gate**:
+
    ```powershell
    npm run type-check; npm run lint; npm run test:run
    ```
 
    - Yêu cầu: `0` lỗi TypeScript, `0` lỗi / `0` cảnh báo ESLint, 100% unit tests đạt, kiểm tra số dòng `ChatBubble.tsx <= 500` và `googleDocsResolver.server.ts <= 400`.
+
 4. **Playwright Visual QA Gate (Bắt buộc vì có sửa `ChatBubble.tsx` & `SourceLinks.tsx` — `.agents/rules/03-ui.md:121-128`)**:
    - Khởi động `next dev`, mock `/api/conversations` với tin nhắn assistant chứa `meta.urlContext` đủ 4 trạng thái (`GOOGLE_DOC_PDF`, `GOOGLE_DOC_TEXT_FALLBACK`, `GOOGLE_DOC_PRIVATE`, `GOOGLE_SHEET_XLSX`).
    - Chụp 4 ảnh `.png` vào thư mục tạm ngoài git: Desktop (`1440×900`) & Mobile (`375×812`) × Dark (`hoanghon-dark`) & Light (`hoanghon-light`), kiểm tra `scrollWidth <= innerWidth` và `axe-core` accessible names.

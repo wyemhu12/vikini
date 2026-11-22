@@ -205,7 +205,7 @@ export const BubbleMarkdown = React.memo(function BubbleMarkdown({
   className = "",
 }: BubbleMarkdownProps) {
   if (isBot === false) {
-    return <span className={`whitespace-pre-wrap break-words ${className}`}>{content}</span>;
+    return <span className={`whitespace-pre-wrap wrap-anywhere ${className}`}>{content}</span>;
   }
 
   const activeStreaming = Boolean(isStreaming && isLastAssistant);

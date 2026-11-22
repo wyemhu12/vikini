@@ -80,7 +80,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
     : t("thinkingProcess") || "Thinking Process";
 
   return (
-    <div className="mb-4 rounded-lg border border-(--line) overflow-hidden bg-(--raised)">
+    <div className="mb-4 w-full min-w-0 rounded-lg border border-(--line) overflow-hidden bg-(--raised)">
       <button
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -109,7 +109,7 @@ export const ThinkingBlock = React.memo(function ThinkingBlock({
           >
             <div
               ref={contentRef}
-              className="px-3 py-3 border-t border-(--line) text-sm text-(--muted) font-mono leading-relaxed bg-(--raised)/50 whitespace-pre-wrap max-h-96 overflow-y-auto"
+              className="px-3 py-3 border-t border-(--line) text-sm text-(--muted) font-mono leading-relaxed bg-(--raised)/50 whitespace-pre-wrap wrap-anywhere max-h-96 overflow-y-auto overflow-x-hidden"
             >
               {content}
             </div>

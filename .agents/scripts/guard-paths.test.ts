@@ -17,9 +17,7 @@ describe("guard-paths", () => {
 
     it("normalises paths to trimmed lower-case POSIX for NTFS comparisons", () => {
       const sep = String.fromCharCode(92);
-      expect(normalizeForCompare([".Claude", "Settings.JSON"].join(sep))).toBe(
-        ".claude/settings.json"
-      );
+      expect(normalizeForCompare([".Husky", "Install.MJS"].join(sep))).toBe(".husky/install.mjs");
       expect(normalizeForCompare("  .AGENTS/Rules/00-Core.md  ")).toBe(".agents/rules/00-core.md");
       expect(normalizeForCompare(null)).toBe("");
       expect(normalizeForCompare(undefined)).toBe("");

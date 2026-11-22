@@ -107,7 +107,8 @@ export function extractLineRefs(text) {
     const rangeSpec = match[2];
     for (const part of rangeSpec.split(",")) {
       const dashIdx = part.indexOf("-");
-      const start = dashIdx >= 0 ? Number.parseInt(part.slice(0, dashIdx), 10) : Number.parseInt(part, 10);
+      const start =
+        dashIdx >= 0 ? Number.parseInt(part.slice(0, dashIdx), 10) : Number.parseInt(part, 10);
       const end = dashIdx >= 0 ? Number.parseInt(part.slice(dashIdx + 1), 10) : start;
       const key = `${rawPath}:${start}-${end}`;
       if (seen.has(key)) continue;
@@ -197,7 +198,7 @@ export function checkLineRefs(refs, repoRoot) {
 }
 
 /**
- * Checks whether a repo-relative file path triggers the Cross-Model Critic requirement.
+ * Checks whether a repo-relative file path triggers the Independent Critic Pass requirement.
  *
  * @param {string} file
  * @returns {boolean}
@@ -206,10 +207,8 @@ function isCriticTriggerFile(file) {
   const norm = file.replace(/\\/g, "/").toLowerCase();
   if (
     norm.startsWith(".agents/") ||
-    norm.startsWith(".claude/") ||
     norm.startsWith(".husky/") ||
     norm === "agents.md" ||
-    norm === "claude.md" ||
     norm === "scripts/code-freeze-guard.js"
   ) {
     return true;

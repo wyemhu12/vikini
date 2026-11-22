@@ -130,8 +130,8 @@ Phân cấp theo severity (thống nhất với @reviewer):
 ## Cơ Chế Runtime Model & Fallback
 
 - Cấu hình `model: inherit` trong YAML frontmatter giúp subagent kế thừa trực tiếp model và mức suy luận (ví dụ `Gemini 4 Argon (High)`) của phiên làm việc chính hiện tại theo chuẩn Google Antigravity Subagents.
-- **Khuyến nghị vận hành**: Khi gọi `@qa` trực tiếp trong khung chat, User/PM ưu tiên chọn **`Claude Opus 5.5 (thinking)`** (`claude-opus-5-5`) hoặc **`Gemini 4 Argon`** (`gemini-4-argon`) trên thanh chọn model của Antigravity.
-- Báo cáo `@qa` BẮT BUỘC ghi nhận chính xác model thực tế đang chạy trong phiên ở đầu báo cáo (`[QA_MODEL: claude-opus-5-5]` hoặc `[QA_MODEL: gemini-4-argon]` / `[FALLBACK_MODEL: gemini-4-argon]`).
+- **Khuyến nghị vận hành**: Khi gọi `@qa` trực tiếp trong khung chat, User/PM ưu tiên chọn **`Gemini 4 Argon (High)`** (`gemini-4-argon`) trên thanh chọn model của Antigravity (kiến trúc Gemini-Native).
+- Báo cáo `@qa` BẮT BUỘC ghi nhận chính xác model thực tế đang chạy trong phiên ở đầu báo cáo (`[QA_MODEL: gemini-4-argon]`).
 
 ## ALLOWLIST LỆNH `run_command` Cho @qa
 

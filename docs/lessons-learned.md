@@ -108,6 +108,19 @@
 
 ## UI and Styling
 
+### 2026-11-22: User chat bubble unscrollable LTR left-overflow on long unbroken URLs (`overflow-wrap: break-word` vs `anywhere`)
+
+- **Symptom**: Sending a user message containing a long unbroken URL (e.g., an Amazon product link or Google Docs URL with a 170+ char query string) expanded the right-aligned user bubble past `max-w-[85%]` (~1629px wide, `left: -293px`), overflowing off the left edge of the centered chat column into the sidebar and getting unscrollably clipped in LTR — while `document.documentElement.scrollWidth <= window.innerWidth` still falsely passed.
+- **Root Cause**:
+  1. In `ChatBubble.tsx`, the user message flex hierarchy (`flex-col items-end`) lacked `min-w-0` across all 4 nested flex wrappers and the bubble box `.rounded-2xl` lacked `max-w-full min-w-0` (while also carrying a conflicting base `px-1` alongside `!isBot`'s `px-4`). Additionally, the desktop edit container used `md:min-w-[min(100%,32rem)]`, where `100%` inside a shrink-to-fit `items-end` parent collapsed to the default `<textarea>` intrinsic width (~215px).
+  2. In `BubbleMarkdown.tsx` (`isBot === false`), `break-words` compiles in Tailwind CSS v4 to `overflow-wrap: break-word`. Per W3C CSS Text/Sizing Level 3, `overflow-wrap: break-word` does **not** contribute soft-wrap opportunities to `min-content` intrinsic sizing, causing shrink-to-fit flex containers (`items-end`) to inflate to the unbroken URL's full length and push excess width leftward past the start edge (unscrollable in LTR).
+  3. Similarly, `ThinkingBlock` (`BubbleHelpers.tsx`) used `whitespace-pre-wrap` without `wrap-anywhere overflow-x-hidden`, and `FileInMessage.tsx` used fixed `max-w-[220px]` without `min-w-0` / `min(220px,100%)`.
+- **Fix**:
+  1. Added `min-w-0` to every flex layer and `min-w-0 max-w-full` to the `.rounded-2xl` bubble box in `ChatBubble.tsx` (moving `px-1` to `isBot` only, keeping shrink-to-fit without `w-full` on `!isBot`, and updating the desktop edit container to `max-w-full ... md:w-[min(60vw,32rem)]`).
+  2. Replaced `break-words` with Tailwind CSS v4 `wrap-anywhere` (`overflow-wrap: anywhere`) in `BubbleMarkdown.tsx` for `isBot === false`, reducing `min-content` while preserving `max-content` shrink-to-fit and natural word-boundary wrapping (unlike `break-all`).
+  3. Added `w-full min-w-0` + `wrap-anywhere overflow-x-hidden` to `ThinkingBlock` (`BubbleHelpers.tsx`) and `min-w-0 max-w-full` + `max-w-[min(220px,100%)] min-w-0` to `FileInMessage.tsx`, with co-located regression tests across all 4 components.
+- **Prevention Rule**: **Inside shrink-to-fit right-aligned flex containers (`flex-col items-end`), ALWAYS pair `min-w-0 max-w-full` on every ancestor layer with Tailwind v4 `wrap-anywhere` (`overflow-wrap: anywhere`) instead of `break-words` (`overflow-wrap: break-word`).** Never rely solely on `scrollWidth <= innerWidth` to detect horizontal overflow in Visual QA: LTR left-overflow is unscrollable, so Playwright checks MUST assert `elRect.left >= containerRect.left - 1` and `elRect.right <= containerRect.right + 1`.
+
 ### 2026-10-11: Plain-text fenced code blocks clipped in chat (react-markdown v10)
 
 - **Symptom**: Fenced code blocks without a language (prompt templates) rendered as inline-code chips per line; long lines were cut off and unreadable.
@@ -415,6 +428,13 @@
 - **Fix (Strategy B: Composite Cache)**: Include `tools` + `toolConfig` in `ai.caches.create()` alongside `systemInstruction`. Cache key includes tools fingerprint so different tool combos (web search on/off) get separate caches. At request time, when `cachedContent` is active, `system_instruction`, `tools`, AND `toolConfig` are ALL omitted — they're in the cache.
 - **Prevention Rule**: **NEVER send `tools`, `tool_config`, or `system_instruction` in a `generateContentStream` request that references `cachedContent`.** Always include them in the cache object via `ai.caches.create()`. Use a composite cache key that hashes the tool configuration to handle dynamic tool changes.
 - **Additional (Strategy D: KB Cache)**: For project conversations, large KB documents can also be cached separately via `getOrCreateKBCache()` to reduce token costs on repeated queries.
+
+### 2026-11-22: Playwright Visual QA 53-Minute Windows Teardown Hang (`next dev` `stdio: "pipe"` Inheritance) ⚠️ RECURRING
+
+- **Symptom**: Running ad-hoc Playwright Visual QA scripts on Windows completed all 4 screenshots in ~20 seconds, then hung indefinitely (up to 53 minutes until manually killed) during server teardown.
+- **Root Cause**: Next.js 16 (`node_modules/next/dist/cli/next-dev.js:393-399`) forks a grandchild `start-server.js` process with `stdio: "inherit"` in non-interactive mode. When the Visual QA script spawned `next dev` with `stdio: "pipe"` (default) and without `server.unref()` / process-tree termination / explicit `process.exit()`, grandchildren inherited open `stdout`/`stderr` pipe handles and kept the parent Node/PowerShell process waiting forever for EOF even after `browser.close()`.
+- **Fix**: Created reusable cross-platform runner `scripts/visual-qa-runner.mjs` (with co-located tests `scripts/visual-qa-runner.test.ts`, `VQ-01`..`VQ-15`) enforcing 4 Windows/CI anti-hang invariants: (1) `stdio: "ignore"` + `windowsHide: true` + `shell: false` + `serverChild.unref()` (plus `detached: process.platform !== "win32"` for POSIX process groups), (2) `assertPortAvailable` (`exclusive: true`) + `waitForServerReady` (`redirect: "manual"`, early-exit check, `AbortSignal`), (3) idempotent `cleanupOnce()` killing both `qaChild` and `serverChild` trees via `C:\Windows\System32\taskkill.exe /F /T /PID` on Windows (`process.kill(-pid, "SIGKILL")` on POSIX) and restoring `next-env.d.ts` byte-exact, and (4) hard watchdog (`--timeout-ms`, exit `124`) + explicit `process.exit(code)` in `runCli()`. Promoted the requirement into `.agents/rules/03-ui.md`.
+- **Prevention Rule**: **NEVER spawn `next dev` with `stdio: "pipe"` inside Visual QA scripts on Windows. Always run Playwright Visual QA through `node scripts/visual-qa-runner.mjs --script <path>` (or enforce `stdio: "ignore"` + `unref()` + `taskkill /F /T /PID` + hard watchdog + `process.exit(code)`).**
 
 ---
 

@@ -15,6 +15,12 @@ function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
     if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".next") continue;
+    if (
+      entry.isDirectory() &&
+      path.relative(REPO_ROOT, fullPath).replace(/\\/g, "/") === ".claude/worktrees"
+    ) {
+      continue;
+    }
     if (entry.isDirectory()) {
       results.push(...walk(fullPath));
     } else if (entry.name.endsWith(".md")) {

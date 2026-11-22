@@ -246,7 +246,7 @@ export const ChatBubble = React.memo(
         className={`group flex w-full flex-col py-3.5 ${isBot ? "" : "items-end"}`}
       >
         <div
-          className={`relative flex flex-col ${isBot ? "w-full min-w-0" : "items-end max-w-[85%]"}`}
+          className={`relative flex flex-col min-w-0 ${isBot ? "w-full" : "items-end max-w-[85%]"}`}
         >
           {isBot && (
             <div className="mb-2 flex items-center gap-2">
@@ -262,17 +262,16 @@ export const ChatBubble = React.memo(
               <span className="truncate text-sm font-medium text-(--text)">{modelLabel}</span>
             </div>
           )}
-
           <div
-            className={`flex flex-col gap-2 ${isBot ? "items-start w-full min-w-0" : "items-end max-w-full"}`}
+            className={`flex flex-col gap-2 min-w-0 ${isBot ? "items-start w-full" : "items-end max-w-full"}`}
           >
             <div
-              className={`relative rounded-2xl px-1 text-base leading-relaxed transition-colors ${
-                isBot ? "text-(--text) w-full" : "bg-(--raised) px-4 py-2.5 text-(--text)"
+              className={`relative rounded-2xl text-base leading-relaxed transition-colors min-w-0 max-w-full ${
+                isBot ? "px-1 text-(--text) w-full" : "bg-(--raised) px-4 py-2.5 text-(--text)"
               }`}
             >
               {isEditing ? (
-                <div className="flex flex-col gap-2 w-full min-w-[min(60vw,18rem)] md:min-w-[min(100%,32rem)]">
+                <div className="flex flex-col gap-2 w-full max-w-full min-w-[min(60vw,18rem)] md:w-[min(60vw,32rem)]">
                   <Textarea
                     ref={textareaRef}
                     value={editContent}
@@ -306,7 +305,7 @@ export const ChatBubble = React.memo(
                 </div>
               ) : (
                 <div
-                  className="flex flex-col w-full overflow-hidden"
+                  className="flex flex-col w-full min-w-0 overflow-hidden"
                   aria-busy={isStreaming && isLastAssistant}
                 >
                   {thought && typeof thought === "string" && (

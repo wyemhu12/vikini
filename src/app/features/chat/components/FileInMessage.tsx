@@ -78,7 +78,7 @@ export function FileInMessage({ conversationId, fileIds, onClick }: FileInMessag
   if (messageFiles.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-1.5 mb-2">
+    <div className="flex flex-wrap gap-1.5 mb-2 min-w-0 max-w-full">
       {messageFiles.map((file) => {
         const Icon = KIND_ICONS[file.kind] ?? File;
         const isImage = file.kind === "image";
@@ -87,7 +87,7 @@ export function FileInMessage({ conversationId, fileIds, onClick }: FileInMessag
             key={file.id}
             type="button"
             onClick={() => onClick?.(file)}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-(--surface)/40 hover:bg-(--surface)/70 border border-(--line)/60 text-xs transition-[background-color,transform] duration-150 active:scale-[0.97] max-w-[220px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-(--surface)/40 hover:bg-(--surface)/70 border border-(--line)/60 text-xs transition-[background-color,transform] duration-150 active:scale-[0.97] max-w-[min(220px,100%)] min-w-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ring)"
           >
             {isImage ? (
               <MessageImageThumb

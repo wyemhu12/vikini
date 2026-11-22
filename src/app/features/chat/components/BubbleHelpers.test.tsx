@@ -108,5 +108,25 @@ describe("BubbleHelpers", () => {
       render(<ThinkingBlock content="Test content" t={() => "Quá trình suy nghĩ"} />);
       expect(screen.getByText("Quá trình suy nghĩ")).toBeInTheDocument();
     });
+
+    it("TC-UB-07: wraps long unbroken URLs inside expanded thinking content without horizontal overflow", () => {
+      const longUrlThought =
+        "Inspecting URL: https://www.amazon.com/dp/B07G3663HD/ref=sr_1_1_sspa?dib=" +
+        "Z".repeat(180);
+      const { container } = render(<ThinkingBlock content={longUrlThought} t={mockT} />);
+
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper).toHaveClass("w-full", "min-w-0");
+
+      fireEvent.click(screen.getByRole("button", { name: /thinking process/i }));
+
+      const content = screen.getByText(longUrlThought);
+      expect(content).toHaveClass(
+        "whitespace-pre-wrap",
+        "wrap-anywhere",
+        "overflow-y-auto",
+        "overflow-x-hidden"
+      );
+    });
   });
 });

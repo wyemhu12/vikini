@@ -46,7 +46,7 @@ description: Core identity, communication, stack, coding invariants, and behavio
 - **Scope**: Only touch files required by the task. No unrelated refactoring.
 - **Minimal diffs**: See `.agents/rules/02-quality.md` for full policy.
 - **No guesswork**: If context is missing, request up to 3 specific files, then proceed.
-- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between planning and reviewing. Planning requires Primary Planner (Claude Code CLI via `.agents/scripts/run-claude.ps1 -Role planner` or fallback subagent `@planner`) and approval requires Lead Reviewer (Primary subagent `@reviewer` or fallback Claude Code CLI via `.agents/scripts/run-claude.ps1 -Role reviewer`) with `[PLAN_APPROVED]`. See `.agents/rules/05-plan-review.md`.
+- **Zero-Self-Execution & Uninterrupted Chain**: Orchestrator never self-plans and never pauses between planning and reviewing. Planning requires Primary Planner (`@planner`) and approval requires Lead Reviewer (`@reviewer` — plus a fresh independent `@reviewer` Critic Pass when `CRITIC_REQUIRED yes`) with `[PLAN_APPROVED]`. See `.agents/rules/05-plan-review.md`.
 
 ## Token Efficiency (tokenleak discipline)
 

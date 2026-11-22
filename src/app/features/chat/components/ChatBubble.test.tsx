@@ -100,6 +100,40 @@ describe("ChatBubble", () => {
       expect(bubbleDiv?.className).not.toContain("bg-(--primary)");
       expect(bubbleDiv?.className).not.toContain("text-(--surface)");
     });
+
+    it("TC-UB-01/TC-UB-03/TC-UB-05/NP-1: constrains long unbroken URLs inside min-w-0/max-w-full flex hierarchy without w-full or px-1 conflict", () => {
+      const longUrlMsg: ChatMessage = {
+        id: "msg-user-long-url",
+        role: "user",
+        content:
+          "https://www.amazon.com/ANYCUBIC-3D-Printer-Resin-Photopolymer/dp/B07G3663HD/ref=sr_1_1_sspa?dib=eyJ2IjoiMSJ9.sxx4Cn5bQdXqiRmt46-ks34CVvOekf3IRbf8ZgTOPSIXZHKvqcYjn1akgajzZA3GZ6p4qW_hm5GIU_wKpU-pRLwdpN9LqzdnsEV2KWI-W85kRhbHstJIoeiZU__nRO0sY97PRIuGZ0LsNgxw5EOk&sr=8-1",
+      };
+
+      const { container } = render(<ChatBubble message={longUrlMsg} />);
+
+      const root = container.firstChild as HTMLElement;
+      const capWrapper = root.firstChild as HTMLElement;
+      const stackWrapper = capWrapper.firstChild as HTMLElement;
+      const bubbleDiv = container.querySelector(".rounded-2xl") as HTMLElement;
+      const contentWrapper = bubbleDiv.firstChild as HTMLElement;
+      const textSpan = screen.getByText(longUrlMsg.content);
+
+      expect(capWrapper).toHaveClass("min-w-0", "items-end", "max-w-[85%]");
+      expect(stackWrapper).toHaveClass("min-w-0", "items-end", "max-w-full");
+      expect(bubbleDiv).toHaveClass("min-w-0", "max-w-full", "bg-(--raised)", "px-4", "py-2.5");
+      expect(bubbleDiv).not.toHaveClass("px-1");
+      expect(bubbleDiv).not.toHaveClass("w-full");
+      expect(contentWrapper).toHaveClass(
+        "flex",
+        "flex-col",
+        "w-full",
+        "min-w-0",
+        "overflow-hidden"
+      );
+      expect(textSpan).toHaveClass("whitespace-pre-wrap", "wrap-anywhere");
+      expect(textSpan).not.toHaveClass("break-words");
+      expect(textSpan).not.toHaveClass("break-all");
+    });
   });
 
   describe("Assistant message rendering", () => {
@@ -322,7 +356,8 @@ describe("ChatBubble", () => {
 
       const botBubble = container.querySelector(".rounded-2xl");
       expect(botBubble).toBeInTheDocument();
-      expect(botBubble).toHaveClass("text-(--text)");
+      expect(botBubble).toHaveClass("px-1", "w-full", "min-w-0", "max-w-full", "text-(--text)");
+      expect(botBubble).not.toHaveClass("bg-(--raised)");
       expect(botBubble?.className.split(" ")).not.toContain("text-primary");
     });
   });
@@ -397,6 +432,36 @@ describe("ChatBubble", () => {
 
       expect(onEdit).not.toHaveBeenCalled();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+
+    it("TC-UB-06: bounds edit container with max-w-full when editing a long unbroken URL", () => {
+      const longUrl =
+        "https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit?usp=sharing&param=" +
+        "a".repeat(160);
+      const onEdit = vi.fn();
+
+      render(
+        <ChatBubble
+          message={{ id: "msg-edit-long-url", role: "user", content: longUrl }}
+          onEdit={onEdit}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+      const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+      expect(textarea.value).toBe(longUrl);
+      expect(textarea.parentElement).toHaveClass("w-full", "max-w-full");
+
+      const updatedUrl = `${longUrl}&v=2`;
+      fireEvent.change(textarea, { target: { value: updatedUrl } });
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+      expect(onEdit).toHaveBeenCalledTimes(1);
+      expect(onEdit).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "msg-edit-long-url", content: longUrl }),
+        updatedUrl
+      );
     });
   });
 

@@ -173,15 +173,32 @@ describe("scripts/verify-plan.mjs", () => {
     ]);
   });
 
-  it("VP-13: detects Critic triggers for Governance, Database, and Security files only", () => {
-    const govPlan = "## Technical Plan\n- [MODIFY] `.agents/rules/05-plan-review.md`\n";
-    expect(detectCriticTriggers(govPlan)).toEqual([".agents/rules/05-plan-review.md"]);
+  it("VP-13: detects Critic triggers for Governance, Database, and Security files only (GC-07)", () => {
+    const govPlan = [
+      "## Technical Plan",
+      "- [MODIFY] `.agents/rules/05-plan-review.md`",
+      "- [MODIFY] `AGENTS.md`",
+      "- [MODIFY] `scripts/code-freeze-guard.js`",
+    ].join("\n");
+    expect(detectCriticTriggers(govPlan)).toEqual([
+      ".agents/rules/05-plan-review.md",
+      "AGENTS.md",
+      "scripts/code-freeze-guard.js",
+    ]);
 
     const dbPlan = "## Technical Plan\n- [NEW] `supabase/migrations/1.sql`\n";
     expect(detectCriticTriggers(dbPlan)).toEqual(["supabase/migrations/1.sql"]);
 
-    const uiPlan = "## Technical Plan\n- [MODIFY] `src/components/A.tsx`\n";
-    expect(detectCriticTriggers(uiPlan)).toEqual([]);
+    const secPlan = "## Technical Plan\n- [MODIFY] `src/lib/core/auth.server.ts`\n";
+    expect(detectCriticTriggers(secPlan)).toEqual(["src/lib/core/auth.server.ts"]);
+
+    const nonTriggerPlan = [
+      "## Technical Plan",
+      "- [MODIFY] `src/components/A.tsx`",
+      "- [DELETE] `CLAUDE.md`",
+      "- [DELETE] `.claude/settings.json`",
+    ].join("\n");
+    expect(detectCriticTriggers(nonTriggerPlan)).toEqual([]);
   });
 
   it("VP-14: skips Critic Floor check when Audit History has no Audit Run", () => {

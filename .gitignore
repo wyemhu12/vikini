@@ -49,9 +49,7 @@ pnpm-debug.log*
 !.agents/skills/vikini-simplify/
 !.agents/skills/vikini-debug/
 !.agents/skills/vikini-audit/
-.claude/skill
-.claude/skills/*
-!.claude/skills/vikini-*/
+.claude/worktrees/
 
 # Root temporary & superpowers scratch files
 *.tmp.md

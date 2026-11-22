@@ -8,6 +8,31 @@
 
 ---
 
+## 2026-11-22: Gemini-Native Agent Governance (Remove Claude Code CLI) & Playwright Visual QA Anti-Hang Runner
+
+- **Gỡ bỏ hoàn toàn Claude Code CLI & chuẩn hóa kiến trúc quản trị Gemini-Native**:
+  - Xóa đích danh 10 tệp cấu hình/script/stub của Claude Code CLI (`.agents/scripts/run-claude.ps1`, `claude-planner-prompt.md`, `claude-reviewer-prompt.md`, `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json`, và 4 stub `.claude/skills/vikini-*/SKILL.md`), bảo toàn nguyên vẹn 4 Git worktree trong `.claude/worktrees/` và AI provider Anthropic Claude cấp ứng dụng (`src/lib/core/claudeClient.ts`, `@anthropic-ai/sdk`).
+  - Thu hẹp loại trừ sang `".claude/worktrees/**"` trong `vitest.config.ts`, `eslint.config.mjs`, `.gitignore` và bỏ qua `.claude/worktrees` trong `scripts/verify-docs.mjs`.
+  - Cập nhật đồng bộ `.agents/scripts/command-policy.js` (chặn 100% lệnh `powershell`/`claude` và `visual-qa-runner.mjs` khỏi read-only allowlist), `code-freeze-guard.js`, `scripts/verify-plan.mjs`, 5 tệp rules (`00-core.md`, `01-coding.md`, `02-quality.md`, `03-ui.md`, `05-plan-review.md`), 3 tệp subagents (`planner`, `reviewer`, `qa`), `.agents/README.md`, `docs/architecture.md`, `docs/plans/README.md` sang luồng `@planner` + `@reviewer` + **Independent Critic Pass** (subagent `@reviewer` mới tinh không chia sẻ lịch sử cho plan nhạy cảm `CRITIC_REQUIRED yes`), đồng thời cập nhật 4 bộ test governance (`GC-01`..`GC-08`, `TC-08`, `TC-H`, `VP-13`).
+- **Cơ chế chống treo Playwright Visual QA vĩnh viễn trên Windows & Linux CI (`scripts/visual-qa-runner.mjs`)**:
+  - Xây dựng runner tái sử dụng `scripts/visual-qa-runner.mjs` cùng 15 bài test co-located `scripts/visual-qa-runner.test.ts` (`VQ-01`..`VQ-15`): chuẩn hóa ổ đĩa Windows (`canonicalizeWindowsPath`), xác thực `--script` trước & sau `realpathSync` (chặn traversal, `.env*`, symlink/junction escape), cách ly đủ 20 biến E2E + bơm `NODE_PATH` / `VISUAL_QA_WORKSPACE_PKG` / `VISUAL_QA_PLAYWRIGHT_ENTRY`, kiểm tra cổng `exclusive: true`, spawn `next dev` với `stdio: "ignore"` + `unref()` + `detached` theo OS, dọn sạch cây tiến trình cháu (`System32\taskkill.exe /F /T /PID` / `process.kill(-pid, "SIGKILL")`), watchdog cứng thoát mã `124` (an toàn cho Vitest worker), và khôi phục `next-env.d.ts` chính xác từng byte.
+  - Ghi quy tắc bắt buộc vào `.agents/rules/03-ui.md` và lưu bài học `/post-fix` vào `docs/lessons-learned.md`.
+
+---
+
+## 2026-11-22: Fix User Chat Bubble LTR Left-Overflow on Long Unbroken URLs
+
+- **Chặn triệt để lỗi tràn trái (unscrollable LTR left-overflow) trên bóng tin nhắn người dùng (`ChatBubble.tsx`, `BubbleMarkdown.tsx`)**:
+  - Bổ sung `min-w-0` cho toàn bộ chuỗi flex container và `min-w-0 max-w-full` cho hộp bóng `.rounded-2xl` của tin nhắn người dùng, đồng thời tách `px-1` riêng cho nhánh `isBot` (loại bỏ xung đột cascade `px-1` vs `px-4`) và giữ nguyên hành vi shrink-to-fit (không gắn `w-full` cho `!isBot`).
+  - Thay `break-words` (`overflow-wrap: break-word`) bằng Tailwind CSS v4 `wrap-anywhere` (`overflow-wrap: anywhere`) trong `BubbleMarkdown.tsx` cho nhánh người dùng (`isBot === false`), giúp URL dài (Amazon, Google Docs) tự xuống dòng gọn trong `max-w-[85%]` mà vẫn giữ nguyên xuống dòng theo ranh giới từ cho văn bản thường và co gọn cho tin nhắn ngắn.
+  - Cố định chiều rộng chế độ chỉnh sửa tin nhắn trên Desktop (`max-w-full ... md:w-[min(60vw,32rem)]`) tránh co hẹp còn `215px` trong container shrink-to-fit.
+- **Chống tràn ngang liên đới cho `ThinkingBlock` & `FileInMessage` (`BubbleHelpers.tsx`, `FileInMessage.tsx`)**:
+  - Bổ sung `w-full min-w-0` và `wrap-anywhere overflow-x-hidden` cho vùng nội dung mở rộng của `ThinkingBlock` khi `<thought>` chứa URL dài.
+  - Bổ sung `min-w-0 max-w-full` và `max-w-[min(220px,100%)] min-w-0` cho chip tệp đính kèm trong `FileInMessage`.
+- **Kiểm thử & Visual QA**: Bổ sung 2 bộ test co-located mới (`BubbleMarkdown.test.tsx`, `FileInMessage.test.tsx`) và mở rộng `ChatBubble.test.tsx`, `BubbleHelpers.test.tsx` (`TC-UB-01..09`), kèm kiểm chứng Playwright Visual QA đa góc nhìn (Desktop `1440×900` & Mobile `375×812` × Dark/Light, `getBoundingClientRect()`, `overflowWrap === "anywhere"`, `axe-core`) và ghi bài học vào `docs/lessons-learned.md`.
+
+---
+
 ## 2026-11-22: Public Google Docs / Sheets / Slides Auto-Resolution (All Models) & Claude 5.5 Native PDF Support
 
 - **Tự động đọc link Google Docs / Sheets / Slides chia sẻ công khai cho toàn bộ 12 models (`googleDocsUrl.ts`, `googleDocsResolver.server.ts`, `chatStreamCore.ts`)**:
