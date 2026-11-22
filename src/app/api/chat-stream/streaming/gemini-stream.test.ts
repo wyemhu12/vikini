@@ -870,4 +870,86 @@ describe("gemini-stream - Thinking configuration & sampling parameter invariants
     expect(out).not.toContain('"ok":true');
     expect(upsertMock).toHaveBeenCalledTimes(1);
   });
+
+  it("TC-CL-04: strips filename from Gemini contents, preserves initialUrlContext when mock returns undefined, and runs onStreamFinally idempotently on success/error/cancel", async () => {
+    const initialUrlContext = [
+      {
+        retrievedUrl: "https://docs.google.com/document/d/1GeminiDoc123456789/edit",
+        status: "GOOGLE_DOC_PDF",
+      },
+    ];
+
+    // 1. Success path: strips `filename`, preserves initialUrlContext even with undefined mock, runs onStreamFinally once
+    const onFinallySuccess = vi.fn().mockResolvedValue(undefined);
+    const generateMock = vi.fn().mockImplementation(async function* () {
+      yield { candidates: [{ content: { parts: [{ text: "Gemini PDF OK" }] } }] };
+    });
+
+    const params = createMockParams({
+      ai: { models: { generateContentStream: generateMock } } as unknown as ChatStreamParams["ai"],
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "Analyze" },
+            {
+              inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQ=" },
+              filename: "ShouldBeStripped.pdf",
+            },
+          ],
+        },
+      ],
+      initialUrlContext,
+      onStreamFinally: onFinallySuccess,
+    });
+
+    const reader = createChatReadableStream(params).getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      out += decoder.decode(value, { stream: true });
+    }
+
+    expect(out).toContain('"type":"urlContext"');
+    expect(out).toContain("GOOGLE_DOC_PDF");
+    const sentContents = generateMock.mock.calls[0][0].contents as Array<{
+      parts: Array<Record<string, unknown>>;
+    }>;
+    const sentPdfPart = sentContents[0].parts.find((p) => "inlineData" in p);
+    expect(sentPdfPart).toBeDefined();
+    expect(sentPdfPart).not.toHaveProperty("filename");
+    expect(onFinallySuccess).toHaveBeenCalledTimes(1);
+
+    // 2. Abort / cancel path: runs onStreamFinally exactly once AND savePartialOnce persists initialUrlContext
+    const onFinallyAbort = vi.fn().mockResolvedValue(undefined);
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const ac = new AbortController();
+    const abortGen = vi.fn().mockImplementation(async function* () {
+      yield { candidates: [{ content: { parts: [{ text: "Partial Gemini" }] } }] };
+      ac.abort();
+    });
+
+    const abortedStream = createChatReadableStream(
+      createMockParams({
+        ai: { models: { generateContentStream: abortGen } } as unknown as ChatStreamParams["ai"],
+        signal: ac.signal,
+        upsertAssistantMessage: upsertMock,
+        initialUrlContext,
+        onStreamFinally: onFinallyAbort,
+      })
+    );
+    const r2 = abortedStream.getReader();
+    while (true) {
+      const { done } = await r2.read();
+      if (done) break;
+    }
+    expect(onFinallyAbort).toHaveBeenCalledTimes(1);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ urlContext: initialUrlContext }),
+      })
+    );
+  });
 });

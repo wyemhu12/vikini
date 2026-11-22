@@ -238,4 +238,96 @@ describe("createStrataStream & getStreamTimeout", () => {
     );
     expect(events.some((e) => e.event === "done" && e.data.ok === false)).toBe(true);
   });
+
+  it("TC-CL-04: emits and persists initialUrlContext on completion & savePartialOnce while handling Google Docs text cleanly", async () => {
+    const initialUrlContext = [
+      {
+        retrievedUrl: "https://docs.google.com/document/d/1StrataDoc123456789/edit",
+        status: "GOOGLE_DOC_TEXT",
+      },
+    ];
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const mockCreate = vi.fn().mockResolvedValue({
+      [Symbol.asyncIterator]() {
+        let done = false;
+        return {
+          async next() {
+            if (!done) {
+              done = true;
+              return {
+                value: {
+                  choices: [{ delta: { content: "Summary from Strata" }, finish_reason: "stop" }],
+                },
+                done: false,
+              };
+            }
+            return { value: undefined, done: true };
+          },
+        };
+      },
+    });
+    const mockAi = { chat: { completions: { create: mockCreate } } } as unknown as OpenAI;
+
+    const stream = createStrataStream(
+      makeBaseParams({
+        ai: mockAi,
+        queue: createStrataQueue({ maxPending: 2 }),
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "\n[GOOGLE DOC: Proposal.txt]\n<<<GOOGLE_DOC_DATA_START>>>\nBody\n<<<GOOGLE_DOC_DATA_END>>>\n",
+              },
+              { text: "Summarize this doc" },
+            ],
+          },
+        ],
+        upsertAssistantMessage: upsertMock,
+        initialUrlContext,
+      })
+    );
+    const events = await readAllSseEvents(stream);
+    expect(events.some((e) => e.event === "meta" && e.data.type === "urlContext")).toBe(true);
+    expect(events.some((e) => e.event === "error")).toBe(false);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ urlContext: initialUrlContext }),
+      })
+    );
+
+    // Partial save on abort preserves initialUrlContext
+    const upsertAbort = vi.fn().mockResolvedValue({});
+    const ac = new AbortController();
+    const abortCreate = vi.fn().mockResolvedValue({
+      [Symbol.asyncIterator]() {
+        let i = 0;
+        return {
+          async next() {
+            if (i === 0) {
+              i++;
+              return { value: { choices: [{ delta: { content: "Half Strata" } }] }, done: false };
+            }
+            ac.abort();
+            return { value: undefined, done: true };
+          },
+        };
+      },
+    });
+    const abortedStream = createStrataStream(
+      makeBaseParams({
+        ai: { chat: { completions: { create: abortCreate } } } as unknown as OpenAI,
+        queue: createStrataQueue({ maxPending: 2 }),
+        signal: ac.signal,
+        upsertAssistantMessage: upsertAbort,
+        initialUrlContext,
+      })
+    );
+    await readAllSseEvents(abortedStream);
+    expect(upsertAbort).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ urlContext: initialUrlContext }),
+      })
+    );
+  });
 });

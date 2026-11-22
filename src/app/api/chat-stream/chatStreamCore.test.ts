@@ -14,6 +14,12 @@ const {
   mockCreateAnthropicStream,
   mockCreateChatReadableStream,
   mockCreateOpenAICompatibleStream,
+  mockCreateStrataStream,
+  mockBuildMessageContext,
+  mockProcessAttachments,
+  mockResolveGoogleWorkspaceLinks,
+  mockCleanupTempGeminiFiles,
+  mockGetStrataAdmission,
 } = vi.hoisted(() => ({
   mockGetGenAIClient: vi.fn(),
   mockGetOpenRouterClient: vi.fn(),
@@ -27,6 +33,12 @@ const {
   mockCreateAnthropicStream: vi.fn(),
   mockCreateChatReadableStream: vi.fn(),
   mockCreateOpenAICompatibleStream: vi.fn(),
+  mockCreateStrataStream: vi.fn(),
+  mockBuildMessageContext: vi.fn(),
+  mockProcessAttachments: vi.fn(),
+  mockResolveGoogleWorkspaceLinks: vi.fn(),
+  mockCleanupTempGeminiFiles: vi.fn(),
+  mockGetStrataAdmission: vi.fn(),
 }));
 
 vi.mock("@/lib/core/genaiClient", () => ({
@@ -76,30 +88,29 @@ vi.mock("./conversationLoader", () => ({
   loadOrCreateConversation: (...args: unknown[]) => mockLoadOrCreateConversation(...args),
   handleMessageTruncation: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/core/strataQueue", () => ({
+  getStrataAdmission: () => mockGetStrataAdmission(),
+}));
+vi.mock("@/lib/features/chat/googleDocsResolver.server", () => ({
+  resolveGoogleWorkspaceLinks: (...args: unknown[]) => mockResolveGoogleWorkspaceLinks(...args),
+  cleanupTempGeminiFiles: (...args: unknown[]) => mockCleanupTempGeminiFiles(...args),
+}));
 vi.mock("./contextBuilder", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./contextBuilder")>();
   return {
     ...actual,
-    buildMessageContext: vi.fn().mockResolvedValue({
-      contextMessages: [{ role: "user", content: "Hello" }],
-      contents: [{ role: "user", parts: [{ text: "Hello" }] }],
-      contentsMeta: [{ messageId: "u-msg-1" }],
-      currentTokenCount: 20,
-    }),
+    buildMessageContext: (...args: unknown[]) => mockBuildMessageContext(...args),
   };
 });
 vi.mock("./attachmentProcessor", () => ({
-  processAttachments: vi.fn().mockImplementation(async (_u, _c, contents, sysPrompt) => ({
-    contents,
-    sysPrompt,
-  })),
+  processAttachments: (...args: unknown[]) => mockProcessAttachments(...args),
 }));
 vi.mock("./streaming", () => ({
   createChatReadableStream: (...args: unknown[]) => mockCreateChatReadableStream(...args),
   createOpenAICompatibleStream: (...args: unknown[]) => mockCreateOpenAICompatibleStream(...args),
   createDeepSeekStream: vi.fn(() => new ReadableStream()),
   createAnthropicStream: (...args: unknown[]) => mockCreateAnthropicStream(...args),
-  createStrataStream: vi.fn(() => new ReadableStream()),
+  createStrataStream: (...args: unknown[]) => mockCreateStrataStream(...args),
 }));
 
 import { handleChatStreamCore } from "./chatStreamCore";
@@ -133,6 +144,28 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
     mockCreateAnthropicStream.mockReturnValue(new ReadableStream());
     mockCreateChatReadableStream.mockReturnValue(new ReadableStream());
     mockCreateOpenAICompatibleStream.mockReturnValue(new ReadableStream());
+    mockCreateStrataStream.mockReturnValue(new ReadableStream());
+    mockGetStrataAdmission.mockReturnValue({ ok: true });
+    mockBuildMessageContext.mockResolvedValue({
+      contextMessages: [{ role: "user", content: "Hello" }],
+      contents: [{ role: "user", parts: [{ text: "Hello" }] }],
+      contentsMeta: [{ messageId: "u-msg-1" }],
+      currentTokenCount: 20,
+    });
+    mockProcessAttachments.mockImplementation(async (_u, _c, contents, sysPrompt) => ({
+      contents,
+      sysPrompt,
+    }));
+    mockResolveGoogleWorkspaceLinks.mockImplementation(
+      async ({ contents, sysPrompt }: { contents: unknown[]; sysPrompt: string }) => ({
+        contents,
+        sysPrompt,
+        urlContext: [],
+        tempGeminiFileNames: [],
+        resolvedCount: 0,
+      })
+    );
+    mockCleanupTempGeminiFiles.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -332,5 +365,137 @@ describe("chatStreamCore (TC-W1-03, TC-W1-08, TC-W1-09)", () => {
       "gemini-3-flash-preview",
       limitsObj
     );
+  });
+
+  describe("Google Workspace orchestration & Strata Local token budget (TC-CL-04)", () => {
+    it("forwards initialUrlContext & onStreamFinally to Gemini and cleans up temp files if Gemini init fails", async () => {
+      mockLoadOrCreateConversation.mockResolvedValue({
+        conversation: { id: "conv-1", gemId: null },
+        conversationId: "conv-1",
+        isNew: false,
+        isUntitled: false,
+        shouldGenerateTitle: false,
+        requestedModel: "gemini-4-neon",
+        model: "gemini-4-neon",
+        modelLimitTokens: 1_048_576,
+      });
+
+      const resolvedUrlContext = [
+        {
+          retrievedUrl: "https://docs.google.com/document/d/1CoreTestDoc1234567/edit",
+          status: "GOOGLE_DOC_PDF",
+        },
+      ];
+      mockResolveGoogleWorkspaceLinks.mockResolvedValueOnce({
+        contents: [{ role: "user", parts: [{ text: "Resolved" }] }],
+        sysPrompt: "Guarded sysPrompt",
+        urlContext: resolvedUrlContext,
+        tempGeminiFileNames: ["files/tmp-core-1"],
+        resolvedCount: 1,
+      });
+
+      const okRes = await handleChatStreamCore({
+        req: makeReq({
+          content: "Check https://docs.google.com/document/d/1CoreTestDoc1234567/edit",
+        }),
+        userId: "u@example.com",
+      });
+      expect(okRes.status).toBe(200);
+      const geminiArgs = mockCreateChatReadableStream.mock.calls[0][0] as {
+        initialUrlContext?: unknown[];
+        onStreamFinally?: () => Promise<void>;
+      };
+      expect(geminiArgs.initialUrlContext).toEqual(resolvedUrlContext);
+      expect(typeof geminiArgs.onStreamFinally).toBe("function");
+      await geminiArgs.onStreamFinally!();
+      expect(mockCleanupTempGeminiFiles).toHaveBeenCalledWith(["files/tmp-core-1"]);
+
+      // Provider init failure -> cleans up tempGeminiFileNames immediately
+      mockCleanupTempGeminiFiles.mockClear();
+      mockResolveGoogleWorkspaceLinks.mockResolvedValueOnce({
+        contents: [{ role: "user", parts: [{ text: "Resolved" }] }],
+        sysPrompt: "Guarded sysPrompt",
+        urlContext: resolvedUrlContext,
+        tempGeminiFileNames: ["files/tmp-init-fail"],
+        resolvedCount: 1,
+      });
+      mockGetGenAIClient.mockImplementationOnce(() => {
+        throw new Error("Missing GEMINI_API_KEY");
+      });
+
+      const failRes = await handleChatStreamCore({
+        req: makeReq({ content: "Check doc" }),
+        userId: "u@example.com",
+      });
+      expect(failRes.status).toBe(500);
+      expect(mockCleanupTempGeminiFiles).toHaveBeenCalledWith(["files/tmp-init-fail"]);
+    });
+
+    it("computes Strata Local doc budget from current turn only (long 25K history still gets >5000 tokens; Turn 1 high thinking + 10K attachment clamps budget safely)", async () => {
+      mockLoadOrCreateConversation.mockResolvedValue({
+        conversation: { id: "conv-local", gemId: null },
+        conversationId: "conv-local",
+        isNew: false,
+        isUntitled: false,
+        shouldGenerateTitle: false,
+        requestedModel: "strata-local",
+        model: "strata-local",
+        modelLimitTokens: 32_768,
+      });
+
+      // Case A: Long history (currentTokenCount = 25000) with short current turn -> MUST keep positive doc budget > 5000
+      mockBuildMessageContext.mockResolvedValueOnce({
+        contextMessages: [{ role: "user", content: "Old history" }],
+        contents: [
+          { role: "user", parts: [{ text: "A".repeat(80_000) }] },
+          { role: "model", parts: [{ text: "Old answer" }] },
+          { role: "user", parts: [{ text: "Read this Google Doc link" }] },
+        ],
+        contentsMeta: [{ messageId: "m1" }, { messageId: "m2" }, { messageId: "m3" }],
+        currentTokenCount: 25_000,
+      });
+
+      await handleChatStreamCore({
+        req: makeReq({ content: "Read this Google Doc link", thinkingLevel: "low" }),
+        userId: "u@example.com",
+      });
+
+      const callA = mockResolveGoogleWorkspaceLinks.mock.calls[0][0] as {
+        remainingTokens: number;
+        isLocalModel: boolean;
+      };
+      expect(callA.isLocalModel).toBe(true);
+      expect(callA.remainingTokens).toBeGreaterThan(5000);
+
+      // Case B: Turn 1 with thinkingLevel="high" (promptBudgetTokens = 15864 -> /1.25 = 12691) + large ~10K token attachment
+      mockResolveGoogleWorkspaceLinks.mockClear();
+      mockBuildMessageContext.mockResolvedValueOnce({
+        contextMessages: [{ role: "user", content: "Check doc" }],
+        contents: [{ role: "user", parts: [{ text: "Check doc" }] }],
+        contentsMeta: [{ messageId: "m1" }],
+        currentTokenCount: 100,
+      });
+      mockProcessAttachments.mockResolvedValueOnce({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: "A".repeat(36_000) }, { text: "Check doc" }], // ~9900 tokens
+          },
+        ],
+        sysPrompt: "Sys",
+      });
+
+      await handleChatStreamCore({
+        req: makeReq({ content: "Check doc", thinkingLevel: "high" }),
+        userId: "u@example.com",
+      });
+
+      const callB = mockResolveGoogleWorkspaceLinks.mock.calls[0][0] as {
+        remainingTokens: number;
+      };
+      // Safe ceiling is floor(15864 / 1.25) = 12691; subtracting ~9900 attachment + chartProtocol + 1024 buffer leaves < 2000 tokens (never overflows!)
+      expect(callB.remainingTokens).toBeLessThan(2000);
+      expect(callB.remainingTokens).toBeGreaterThanOrEqual(0);
+    });
   });
 });

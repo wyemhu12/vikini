@@ -243,4 +243,156 @@ describe("attachmentProcessor", () => {
       true
     );
   });
+
+  describe("Claude Native PDF & Strata Local safety (TC-CL-03)", () => {
+    it("injects native PDF inlineData with filename for newly attached valid PDF on Claude Direct and tracks pdfBytesUsed", async () => {
+      const originalKey = process.env.ANTHROPIC_API_KEY;
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+      try {
+        const pdfBytes = Buffer.from("%PDF-1.7\nhello pdf");
+        const pdfFile = {
+          id: "pdf-1",
+          user_id: "user-1",
+          conversation_id: "conv-1",
+          filename: "deck.pdf",
+          mime_type: "application/pdf",
+          size_bytes: pdfBytes.length,
+          kind: "document",
+          storage_path: "user-1/conv-1/deck.pdf",
+          extracted_text: "Extracted fallback text",
+          created_at: new Date().toISOString(),
+        } as unknown as FileRow;
+
+        mockListFiles.mockResolvedValue([pdfFile]);
+        mockDownloadFileBytes.mockResolvedValue({ bytes: pdfBytes });
+
+        const res = await processAttachments(
+          "user-1",
+          "conv-1",
+          [{ role: "user", parts: [{ text: "Review PDF" }] }],
+          "Sys",
+          100,
+          100_000,
+          "claude-sonnet-5-5",
+          ["pdf-1"]
+        );
+
+        expect(mockDownloadFileBytes).toHaveBeenCalledTimes(1);
+        expect(res.pdfBytesUsed).toBe(pdfBytes.length);
+        const parts = res.contents[0].parts as Array<Record<string, unknown>>;
+        const pdfPart = parts.find((p) => "inlineData" in p);
+        expect(pdfPart).toEqual({
+          inlineData: { data: pdfBytes.toString("base64"), mimeType: "application/pdf" },
+          filename: "deck.pdf",
+        });
+      } finally {
+        if (originalKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+        else process.env.ANTHROPIC_API_KEY = originalKey;
+      }
+    });
+
+    it("pre-checks f.size_bytes > 20MB without calling downloadFileBytes and falls back to extracted_text", async () => {
+      const originalKey = process.env.ANTHROPIC_API_KEY;
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+      try {
+        const hugePdf = {
+          id: "pdf-huge",
+          user_id: "user-1",
+          conversation_id: "conv-1",
+          filename: "huge.pdf",
+          mime_type: "application/pdf",
+          size_bytes: 25 * 1024 * 1024,
+          kind: "document",
+          storage_path: "user-1/conv-1/huge.pdf",
+          extracted_text: "Fallback extracted huge PDF text",
+          created_at: new Date().toISOString(),
+        } as unknown as FileRow;
+
+        mockListFiles.mockResolvedValue([hugePdf]);
+
+        const res = await processAttachments(
+          "user-1",
+          "conv-1",
+          [{ role: "user", parts: [{ text: "Summarize" }] }],
+          "Sys",
+          100,
+          100_000,
+          "claude-sonnet-5-5",
+          ["pdf-huge"]
+        );
+
+        expect(mockDownloadFileBytes).not.toHaveBeenCalled();
+        expect(res.pdfBytesUsed).toBe(0);
+        const parts = res.contents[0].parts as Array<{ text?: string; inlineData?: unknown }>;
+        expect(parts.some((p) => p.inlineData)).toBe(false);
+        expect(parts.some((p) => p.text?.includes("Fallback extracted huge PDF text"))).toBe(true);
+      } finally {
+        if (originalKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+        else process.env.ANTHROPIC_API_KEY = originalKey;
+      }
+    });
+
+    it("falls back to extracted_text on invalid PDF magic bytes and never injects PDF inlineData on strata-local", async () => {
+      const originalKey = process.env.ANTHROPIC_API_KEY;
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+      try {
+        const corruptPdf = {
+          id: "pdf-bad",
+          user_id: "user-1",
+          conversation_id: "conv-1",
+          filename: "bad.pdf",
+          mime_type: "application/pdf",
+          size_bytes: 20,
+          kind: "document",
+          storage_path: "user-1/conv-1/bad.pdf",
+          extracted_text: "Safe extracted text",
+          created_at: new Date().toISOString(),
+        } as unknown as FileRow;
+
+        mockListFiles.mockResolvedValue([corruptPdf]);
+        mockDownloadFileBytes.mockResolvedValue({ bytes: Buffer.from("NOT_A_PDF_HEADER") });
+
+        const claudeRes = await processAttachments(
+          "user-1",
+          "conv-1",
+          [{ role: "user", parts: [{ text: "Read" }] }],
+          "Sys",
+          100,
+          100_000,
+          "claude-sonnet-5-5",
+          ["pdf-bad"]
+        );
+
+        const claudeParts = claudeRes.contents[0].parts as Array<{
+          text?: string;
+          inlineData?: unknown;
+        }>;
+        expect(claudeParts.some((p) => p.inlineData)).toBe(false);
+        expect(claudeParts.some((p) => p.text?.includes("Safe extracted text"))).toBe(true);
+
+        // Strata Local MUST NEVER download binary PDF or emit inlineData
+        mockDownloadFileBytes.mockClear();
+        const strataRes = await processAttachments(
+          "user-1",
+          "conv-1",
+          [{ role: "user", parts: [{ text: "Read" }] }],
+          "Sys",
+          100,
+          32_000,
+          "strata-local",
+          ["pdf-bad"]
+        );
+        expect(mockDownloadFileBytes).not.toHaveBeenCalled();
+        const strataParts = strataRes.contents[0].parts as Array<{
+          text?: string;
+          inlineData?: unknown;
+        }>;
+        expect(strataParts.some((p) => p.inlineData)).toBe(false);
+        expect(strataParts.some((p) => p.text?.includes("Safe extracted text"))).toBe(true);
+      } finally {
+        if (originalKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+        else process.env.ANTHROPIC_API_KEY = originalKey;
+      }
+    });
+  });
 });

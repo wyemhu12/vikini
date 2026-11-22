@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { GeneratedImage } from "../Canvas";
 import {
+  ReferenceImageUploadError,
   buildFinalPrompt,
   buildGenerateImageBody,
   classifyStudioError,
-  convertReferenceImagesToBase64,
   estimateGenerationSeconds,
   fetchStudioBatchQuota,
   postGenerateImageRequest,
@@ -14,6 +14,7 @@ import {
   requestImageVariation,
   resolveApiKeyStorageKey,
   resolveBatchFailureReason,
+  uploadReferenceImages,
 } from "@/lib/features/image-gen/studioHelpers";
 import { logger } from "@/lib/utils/logger";
 import { toast } from "@/lib/store/toastStore";
@@ -124,13 +125,18 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
       }, 1000);
 
       const finalPrompt = buildFinalPrompt(prompt, negativePrompt);
-      const referenceImagesBase64 = await convertReferenceImagesToBase64(referenceImages, (e) =>
-        logger.warn("Failed to convert reference images:", e)
-      );
-      if (isUnmountedRef.current) return;
-
       const resolvedTargetId = targetId;
       const sendOne = async () => {
+        const referenceImagePaths =
+          referenceImages.length > 0
+            ? await uploadReferenceImages(
+                referenceImages,
+                resolvedTargetId,
+                t("studioRefUploadFailed")
+              )
+            : [];
+        if (isUnmountedRef.current) return { success: false };
+
         const body = buildGenerateImageBody({
           prompt: finalPrompt,
           conversationId: resolvedTargetId,
@@ -139,7 +145,7 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
           resolution,
           style,
           isEnhancerOn,
-          referenceImagesBase64,
+          referenceImagePaths,
           batchSize: numberOfImages > 1 ? numberOfImages : undefined,
         });
         const json = await postGenerateImageRequest(body, key, "Generation failed");
@@ -182,7 +188,11 @@ export function useImageStudioActions(params: UseImageStudioActionsParams) {
     } catch (error: unknown) {
       logger.error("Gen Error:", error);
       if (successCount === 0 && !isUnmountedRef.current) {
-        setShowError(classifyStudioError(error instanceof Error ? error.message : "", t));
+        if (error instanceof ReferenceImageUploadError) {
+          toast.error(t("studioRefUploadFailed"));
+        } else {
+          setShowError(classifyStudioError(error instanceof Error ? error.message : "", t));
+        }
       }
     } finally {
       if (genTimerRef.current) {

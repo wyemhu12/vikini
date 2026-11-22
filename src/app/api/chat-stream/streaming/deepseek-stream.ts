@@ -46,6 +46,7 @@ export function createDeepSeekStream(params: {
   clientMessageId?: string;
   signal?: AbortSignal;
   ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
+  initialUrlContext?: Array<{ retrievedUrl: string; status: string }>;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -72,6 +73,7 @@ export function createDeepSeekStream(params: {
     clientMessageId,
     signal,
     ragSources,
+    initialUrlContext,
   } = params;
 
   const ac = new AbortController();
@@ -115,6 +117,9 @@ export function createDeepSeekStream(params: {
             model,
             clientMessageId,
             ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
+            ...(initialUrlContext && initialUrlContext.length > 0
+              ? { urlContext: initialUrlContext }
+              : {}),
           },
         });
       } catch (saveErr) {
@@ -139,6 +144,7 @@ export function createDeepSeekStream(params: {
         modelMeta,
         model,
         ragSources,
+        initialUrlContext,
       });
 
       // 2. Optimistic Title
@@ -165,18 +171,21 @@ export function createDeepSeekStream(params: {
           ? effectiveSysPromptPrefix + sysPrompt
           : sysPrompt;
 
-        // Map contents to OpenAI format (same as createOpenAICompatibleStream)
+        // Map contents to OpenAI format (guard: only allow image/* in user turns; keep plain string when PDF/binary filtered)
         type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
         const openAIMessages = [
           { role: "system" as const, content: effectiveSysPrompt },
           ...(contents as Array<{ role: string; parts: GeminiPart[] }>).map((m) => {
-            const hasImages = m.parts.some((p) => p.inlineData);
-            if (hasImages) {
+            const isModel = m.role === "model";
+            const hasSupportedImages = m.parts.some((p) =>
+              Boolean(p.inlineData?.mimeType?.startsWith("image/"))
+            );
+            if (hasSupportedImages && !isModel) {
               const contentParts: Array<
                 { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
               > = [];
               for (const p of m.parts) {
-                if (p.inlineData) {
+                if (p.inlineData?.mimeType?.startsWith("image/")) {
                   contentParts.push({
                     type: "image_url" as const,
                     image_url: {
@@ -188,12 +197,12 @@ export function createDeepSeekStream(params: {
                 }
               }
               return {
-                role: m.role === "model" ? "assistant" : m.role,
+                role: m.role,
                 content: contentParts,
               };
             }
             return {
-              role: m.role === "model" ? "assistant" : m.role,
+              role: isModel ? "assistant" : m.role,
               content: m.parts.map((p) => p.text || "").join(""),
             };
           }),
@@ -413,6 +422,8 @@ export function createDeepSeekStream(params: {
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          urlContext:
+            initialUrlContext && initialUrlContext.length > 0 ? initialUrlContext : undefined,
           usageMetadata,
           isActuallyBlocked: false,
           shouldGenerateTitle,

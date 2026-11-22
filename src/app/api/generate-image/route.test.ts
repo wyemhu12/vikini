@@ -41,6 +41,7 @@ vi.mock("@/lib/core/genaiClient", () => ({
 
 const mockSupabaseFrom = vi.fn();
 const mockStorageUpload = vi.fn();
+const mockStorageDownload = vi.fn();
 const mockStorageRemove = vi.fn();
 const mockStorageCreateSignedUrl = vi.fn();
 const mockStorageGetPublicUrl = vi.fn();
@@ -51,6 +52,7 @@ vi.mock("@/lib/core/supabase.server", () => ({
     storage: {
       from: () => ({
         upload: mockStorageUpload,
+        download: mockStorageDownload,
         remove: mockStorageRemove,
         createSignedUrl: mockStorageCreateSignedUrl,
         getPublicUrl: mockStorageGetPublicUrl,
@@ -394,13 +396,18 @@ describe("/api/generate-image", () => {
       expect(res.status).toBe(400);
     });
 
-    it("should accept referenceImages array (QW-D)", async () => {
+    it("should accept referenceImagePaths array up to 4 paths", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();
 
       const req = createRequest("POST", "/api/generate-image", {
         ...validBody,
-        options: { referenceImages: ["data:image/png;base64,abc", "data:image/png;base64,def"] },
+        options: {
+          referenceImagePaths: [
+            `${TEST_EMAIL}/${TEST_CONV_ID}/ref-11111111-2222-3333-4444-555555555555.png`,
+            `${TEST_EMAIL}/${TEST_CONV_ID}/ref-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png`,
+          ],
+        },
       });
       const res = await POST(req);
 
@@ -408,19 +415,19 @@ describe("/api/generate-image", () => {
       expect(res.status).not.toBe(400);
     });
 
-    it("should return 400 when referenceImages exceeds max 4 (QW-D)", async () => {
+    it("should return 400 when referenceImagePaths exceeds max 4", async () => {
       mockAuthenticated();
       mockRateLimitAllowed();
 
       const req = createRequest("POST", "/api/generate-image", {
         ...validBody,
         options: {
-          referenceImages: [
-            "data:image/png;base64,a",
-            "data:image/png;base64,b",
-            "data:image/png;base64,c",
-            "data:image/png;base64,d",
-            "data:image/png;base64,e", // 5th - exceeds max
+          referenceImagePaths: [
+            "u/c/ref-1.png",
+            "u/c/ref-2.png",
+            "u/c/ref-3.png",
+            "u/c/ref-4.png",
+            "u/c/ref-5.png", // 5th - exceeds max
           ],
         },
       });
@@ -1110,6 +1117,383 @@ describe("/api/generate-image", () => {
         const res2 = await POST(createRequest("POST", "/api/generate-image", validBody));
         expect(res2.status).toBe(500);
         expect(mockStorageRemove).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("Message Metadata Sanitization - Prevent JSONB Statement Timeout (TC-GI-META-01..04)", () => {
+      const setupSuccessGeneration = async () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockSupabaseFrom.mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+                error: null,
+              }),
+            }),
+          }),
+        });
+
+        const generateSpy = vi.fn().mockResolvedValue([{ url: "data:image/png;base64,aGVsbG8=" }]);
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: generateSpy,
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        vi.mocked(saveMessage).mockResolvedValueOnce({
+          id: "msg-sanitized",
+          conversationId: TEST_CONV_ID,
+          role: "assistant",
+          content: "Generated Image: test",
+          createdAt: "2026-11-22",
+          meta: {},
+        });
+
+        return { generateSpy };
+      };
+
+      it("TC-GI-META-01 & WP-CLEAN-02: strips referenceImagePaths from saved metadata while delivering resolvedReferenceImages and cleaning up Storage", async () => {
+        const { generateSpy } = await setupSuccessGeneration();
+        const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+        const refPath1 = `${TEST_EMAIL}/${TEST_CONV_ID}/ref-11111111-2222-3333-4444-555555555555.png`;
+        const refPath2 = `${TEST_EMAIL}/${TEST_CONV_ID}/ref-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png`;
+        mockStorageDownload
+          .mockResolvedValueOnce({
+            data: {
+              size: pngHeader.byteLength,
+              arrayBuffer: vi.fn().mockResolvedValue(pngHeader.buffer.slice(0)),
+            },
+            error: null,
+          })
+          .mockResolvedValueOnce({
+            data: {
+              size: pngHeader.byteLength,
+              arrayBuffer: vi.fn().mockResolvedValue(pngHeader.buffer.slice(0)),
+            },
+            error: null,
+          });
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: {
+            aspectRatio: "16:9",
+            resolution: "4K",
+            style: "photorealistic",
+            enhancer: false,
+            model: "gemini-3-pro-image",
+            referenceImagePaths: [refPath1, refPath2],
+          },
+        });
+        const res = await POST(req);
+        const json = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(json.success).toBe(true);
+
+        // WP-CLEAN-02: provider receives 2 verified resolvedReferenceImages
+        expect(generateSpy).toHaveBeenCalledTimes(1);
+        const passedOpts = generateSpy.mock.calls[0][1] as {
+          resolvedReferenceImages?: Array<{ mimeType: string; sizeBytes: number }>;
+        };
+        expect(passedOpts.resolvedReferenceImages).toHaveLength(2);
+        expect(passedOpts.resolvedReferenceImages?.[0].mimeType).toBe("image/png");
+
+        // saveMessage metadata never persists storage paths or binary payloads
+        expect(saveMessage).toHaveBeenCalledTimes(1);
+        const savedMeta = vi.mocked(saveMessage).mock.calls[0][4] as {
+          originalOptions: Record<string, unknown>;
+          metadata: { originalOptions: Record<string, unknown> };
+        };
+
+        expect("referenceImagePaths" in savedMeta.originalOptions).toBe(false);
+        expect("resolvedReferenceImages" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImage" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImages" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImagePaths" in savedMeta.metadata.originalOptions).toBe(false);
+
+        expect(savedMeta.originalOptions).toEqual({
+          aspectRatio: "16:9",
+          resolution: "4K",
+          numberOfImages: 1,
+          style: "photorealistic",
+          enhancer: false,
+          model: "gemini-3-pro-image",
+          referenceImageCount: 2,
+        });
+        expect(savedMeta.metadata.originalOptions).toEqual(savedMeta.originalOptions);
+        expect(mockStorageRemove).toHaveBeenCalledWith([refPath1, refPath2]);
+      });
+
+      it("TC-CLEAN-02 & NP-CLEAN-02: Zod strips legacy base64 referenceImage/referenceImages so they never reach provider, routing, or DB", async () => {
+        const { generateSpy } = await setupSuccessGeneration();
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        const legacySingle = `data:image/png;base64,${"A".repeat(512)}`;
+        const legacyMulti = [`data:image/jpeg;base64,${"B".repeat(512)}`];
+
+        const req = createRequest("POST", "/api/generate-image", {
+          ...validBody,
+          options: {
+            model: "gpt-image-2",
+            aspectRatio: "1:1",
+            referenceImage: legacySingle,
+            referenceImages: legacyMulti,
+          },
+        });
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        // Must NOT auto-route to gemini-native because validatedRefPaths is empty
+        expect(ImageGenFactory.getProvider).toHaveBeenCalledWith("openai");
+
+        const passedOpts = generateSpy.mock.calls[0][1] as Record<string, unknown>;
+        expect("referenceImage" in passedOpts).toBe(false);
+        expect("referenceImages" in passedOpts).toBe(false);
+        expect(passedOpts.resolvedReferenceImages).toBeUndefined();
+
+        const savedMeta = vi.mocked(saveMessage).mock.calls[0][4] as {
+          originalOptions: Record<string, unknown>;
+          metadata: { originalOptions: Record<string, unknown> };
+        };
+        expect("referenceImage" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImages" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImageCount" in savedMeta.originalOptions).toBe(false);
+        expect(JSON.stringify(savedMeta)).not.toContain("A".repeat(128));
+        expect(JSON.stringify(savedMeta)).not.toContain("B".repeat(128));
+      });
+
+      it("TC-GI-META-04: omits referenceImageCount cleanly when options is omitted or has no reference images", async () => {
+        await setupSuccessGeneration();
+
+        const req = createRequest("POST", "/api/generate-image", validBody);
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(saveMessage).toHaveBeenCalledTimes(1);
+        const savedMeta = vi.mocked(saveMessage).mock.calls[0][4] as {
+          originalOptions: Record<string, unknown>;
+          metadata: { originalOptions: Record<string, unknown> };
+        };
+
+        expect("referenceImage" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImages" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImageCount" in savedMeta.originalOptions).toBe(false);
+        expect(savedMeta.originalOptions).toEqual({
+          model: "Gemini Image Flash",
+        });
+        expect(savedMeta.metadata.originalOptions).toEqual(savedMeta.originalOptions);
+      });
+    });
+
+    describe("Direct-Uploaded Reference Image Paths (TC-REF-08, WP-2, NP-1, NP-2, NP-3)", () => {
+      const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+      const REF_PATH_1 = `${TEST_EMAIL}/${TEST_CONV_ID}/ref-11111111-2222-3333-4444-555555555555.png`;
+      const REF_PATH_2 = `${TEST_EMAIL}/${TEST_CONV_ID}/ref-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.png`;
+
+      const mockOwnedConversation = () => {
+        mockAuthenticated();
+        mockRateLimitAllowed();
+        mockSupabaseFrom.mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: TEST_CONV_ID, user_id: TEST_EMAIL },
+                error: null,
+              }),
+            }),
+          }),
+        });
+      };
+
+      const makeValidPngBlob = () => ({
+        size: PNG_HEADER.byteLength,
+        arrayBuffer: vi.fn().mockResolvedValue(PNG_HEADER.buffer.slice(0)),
+      });
+
+      it("TC-REF-08(a) & WP-2: auto-routes gemini-native, downloads refs, strips paths from DB meta, and cleans up Storage in finally", async () => {
+        mockOwnedConversation();
+        mockStorageDownload
+          .mockResolvedValueOnce({ data: makeValidPngBlob(), error: null })
+          .mockResolvedValueOnce({ data: makeValidPngBlob(), error: null });
+
+        const generateSpy = vi.fn().mockResolvedValue([{ url: "data:image/png;base64,aGVsbG8=" }]);
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: generateSpy,
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        vi.mocked(saveMessage).mockResolvedValueOnce({
+          id: "msg-ref-paths",
+          conversationId: TEST_CONV_ID,
+          role: "assistant",
+          content: "Generated Image: upscale",
+          createdAt: "2026-11-22",
+          meta: {},
+        });
+
+        const res = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: {
+              model: "gpt-image-2", // Should auto-route to gemini-native because referenceImagePaths present
+              resolution: "4K",
+              referenceImagePaths: [REF_PATH_1, REF_PATH_2],
+            },
+          })
+        );
+
+        expect(res.status).toBe(200);
+        expect(ImageGenFactory.getProvider).toHaveBeenCalledWith("gemini-native");
+        expect(mockStorageDownload).toHaveBeenCalledWith(REF_PATH_1);
+        expect(mockStorageDownload).toHaveBeenCalledWith(REF_PATH_2);
+        expect(generateSpy).toHaveBeenCalledWith(
+          validBody.prompt,
+          expect.objectContaining({
+            resolvedReferenceImages: expect.arrayContaining([
+              expect.objectContaining({ mimeType: "image/png", sizeBytes: PNG_HEADER.byteLength }),
+            ]),
+          }),
+          undefined
+        );
+
+        const savedMeta = vi.mocked(saveMessage).mock.calls[0][4] as {
+          originalOptions: Record<string, unknown>;
+          metadata: { originalOptions: Record<string, unknown> };
+        };
+        expect("referenceImagePaths" in savedMeta.originalOptions).toBe(false);
+        expect("resolvedReferenceImages" in savedMeta.originalOptions).toBe(false);
+        expect("referenceImagePaths" in savedMeta.metadata.originalOptions).toBe(false);
+        expect(savedMeta.originalOptions.referenceImageCount).toBe(2);
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1, REF_PATH_2]);
+      });
+
+      it("TC-REF-08(b): cleans up temporary reference images in finally when provider.generate throws", async () => {
+        mockOwnedConversation();
+        mockStorageDownload.mockResolvedValueOnce({ data: makeValidPngBlob(), error: null });
+
+        const { ImageGenFactory } = await import("@/lib/features/image-gen/core/ImageGenFactory");
+        vi.mocked(ImageGenFactory.getProvider).mockReturnValue({
+          generate: vi.fn().mockRejectedValue(new Error("Provider timeout")),
+        } as unknown as ReturnType<typeof ImageGenFactory.getProvider>);
+
+        const res = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { referenceImagePaths: [REF_PATH_1] },
+          })
+        );
+
+        expect(res.status).toBe(500);
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1]);
+      });
+
+      it("TC-REF-08(c) & NP-3(b): cleans up temporary reference images on early 403 batch/quota or 503 profile rejection", async () => {
+        // 1. 403 BATCH_SIZE_EXCEEDS_RANK (basic maxBatchSize = 2, request batchSize = 4)
+        mockOwnedConversation();
+        const resBatch = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            batchSize: 4,
+            options: { referenceImagePaths: [REF_PATH_1] },
+          })
+        );
+        expect(resBatch.status).toBe(403);
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1]);
+
+        // 2. 403 BATCH_GEN_LIMIT_EXCEEDED
+        mockStorageRemove.mockClear();
+        mockOwnedConversation();
+        const { tryClaimBatchGenSlot } = await import("@/lib/core/batchGenQuota");
+        vi.mocked(tryClaimBatchGenSlot).mockResolvedValueOnce({
+          claimed: false,
+          code: "BATCH_GEN_LIMIT_EXCEEDED",
+          reason: "Daily batch limit reached",
+        });
+        const resQuota = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            batchSize: 2,
+            options: { referenceImagePaths: [REF_PATH_1] },
+          })
+        );
+        expect(resQuota.status).toBe(403);
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1]);
+
+        // 3. 503 null profile
+        mockStorageRemove.mockClear();
+        mockOwnedConversation();
+        const { getUserProfile } = await import("@/lib/core/limits");
+        vi.mocked(getUserProfile).mockResolvedValueOnce(null);
+        const resProfile = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { referenceImagePaths: [REF_PATH_1] },
+          })
+        );
+        expect(resProfile.status).toBe(503);
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1]);
+      });
+
+      it("NP-1: blocks IDOR path with 403 without downloading, generating, or deleting victim object", async () => {
+        mockOwnedConversation();
+        const victimPath = `victim@example.com/${TEST_CONV_ID}/ref-11111111-2222-3333-4444-555555555555.png`;
+
+        const res = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { referenceImagePaths: [victimPath] },
+          })
+        );
+
+        expect(res.status).toBe(403);
+        expect(mockStorageDownload).not.toHaveBeenCalled();
+        expect(mockStorageRemove).not.toHaveBeenCalled();
+      });
+
+      it("NP-2: blocks path traversal and non-ref prefix with 400 without touching Storage", async () => {
+        mockOwnedConversation();
+        const res1 = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: {
+              referenceImagePaths: [
+                `${TEST_EMAIL}/${TEST_CONV_ID}/../other/ref-11111111-2222-3333-4444-555555555555.png`,
+              ],
+            },
+          })
+        );
+        expect(res1.status).toBe(400);
+
+        mockOwnedConversation();
+        const res2 = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { referenceImagePaths: [`${TEST_EMAIL}/${TEST_CONV_ID}/gen-123.png`] },
+          })
+        );
+        expect(res2.status).toBe(400);
+        expect(mockStorageDownload).not.toHaveBeenCalled();
+        expect(mockStorageRemove).not.toHaveBeenCalled();
+      });
+
+      it("NP-3(a): rejects >40MB blob before arrayBuffer() and still deletes temp object in finally", async () => {
+        mockOwnedConversation();
+        const arrayBufferSpy = vi.fn();
+        mockStorageDownload.mockResolvedValueOnce({
+          data: { size: 41 * 1024 * 1024, arrayBuffer: arrayBufferSpy },
+          error: null,
+        });
+
+        const res = await POST(
+          createRequest("POST", "/api/generate-image", {
+            ...validBody,
+            options: { referenceImagePaths: [REF_PATH_1] },
+          })
+        );
+
+        expect(res.status).toBe(400);
+        expect(arrayBufferSpy).not.toHaveBeenCalled();
+        expect(mockStorageRemove).toHaveBeenCalledWith([REF_PATH_1]);
       });
     });
 

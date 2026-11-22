@@ -8,6 +8,54 @@
 
 ---
 
+## 2026-11-22: Public Google Docs / Sheets / Slides Auto-Resolution (All Models) & Claude 5.5 Native PDF Support
+
+- **Tự động đọc link Google Docs / Sheets / Slides chia sẻ công khai cho toàn bộ 12 models (`googleDocsUrl.ts`, `googleDocsResolver.server.ts`, `chatStreamCore.ts`)**:
+  - Thêm bộ tách & chuẩn hóa URL thuần `googleDocsUrl.ts` (hỗ trợ `/u/{n}/`, `?tab=`, `?gid=`/`#gid=`, khử trùng lặp, trần `3` link/tin nhắn, validate `gid`/`tab` bằng regex + `URLSearchParams`, chặn hostname giả mạo & URL nhúng query).
+  - Tạo service bảo mật server-only `googleDocsResolver.server.ts` tái sử dụng `validateSafeUrl()` (`ssrfGuard.server.ts`) kết hợp allowlist host Google ở từng hop redirect (`redirect: "manual"`, `credentials: "omit"`, chặn `username`/`password`/cổng khác `443`), streaming byte cap (`20 MB` Gemini/Claude Direct, `15 MB` OpenRouter Claude, `25 MB/lượt`, `15 MB` XLSX, `2 MB` text), timeout `12s`/`20s` + dọn listener `AbortSignal`, phát hiện link Private (`accounts.google.com` / `401`/`403` / HTML sign-in), tự động fallback **PDF→TXT** khi vượt trần (xử lý an toàn ảnh siêu phân giải `7168×9600`) và **XLSX→CSV** (tái sử dụng `parseXlsxWithExcelJs()` + `validateZipArchiveSafety()`), thoát delimiter chống prompt injection, và dọn tệp tạm Gemini Files API (`15–20 MB`) idempotent qua `onStreamFinally`.
+  - Tính ngân sách văn bản Google Docs cho **Strata Local** theo `Math.floor(resolveStrataThinkingPlan(...).promptBudgetTokens / 1.25)` chỉ trừ token lượt hiện tại (không trừ lịch sử `128K` và tuyệt đối không bơm `inlineData`).
+- **Nâng cấp Native PDF cho Claude 5.5 & Guard 5 Stream Engines (`modelRegistry.ts`, `attachmentProcessor.ts`, `anthropic-message-mapper.ts`, `streaming/*`)**:
+  - Bổ sung SSOT `getModelPdfCapability()` kiểm tra raw model ID trước `normalizeModelForApi()`.
+  - Tách `anthropic-message-mapper.ts` ánh xạ `application/pdf` sang `BetaRequestDocumentBlock` (`type: "document"`) cho Direct Anthropic; nâng cấp `attachmentProcessor.ts` hỗ trợ tệp PDF tải lên cho Claude Direct (`<= 20 MB`) & OpenRouter Claude (`<= 15 MB`) với pre-check `f.size_bytes` trước `downloadFileBytes()`.
+  - Cập nhật `openai-stream.ts` (OpenRouter Claude `type: "file"` + `plugins` có điều kiện, giữ `content: string` cho Groq/Grok/GLM/DeepSeek V3.2), `deepseek-stream.ts` (lọc `image/*` thuần), `gemini-stream.ts` (`sanitizeGeminiContents()` lược `filename`, guard mock `undefined`, `onStreamFinally`), `strata-stream.ts`, và `post-processing.ts` (`mergeUrlContextEntries()` chống ghi đè SSE `urlContext` + lưu trong `savePartialOnce()` ở cả 5 engine).
+- **UI Chip Trạng Thái Song Ngữ (`ChatBubble.tsx`, `SourceLinks.tsx`, `vi.ts`, `en.ts`)**:
+  - Hiển thị chip Google Docs/Sheets/Slides theo Vikini 3.0 tokens (`focus-visible:ring-2 focus-visible:ring-(--ring)`, không `uppercase`) kèm 7 khóa song ngữ VI/EN đối xứng và hiển thị rõ trạng thái `Chỉ văn bản` / `Riêng tư` / `Không thể đọc`.
+- **Kiểm thử**: Bổ sung 3 bộ test mới (`googleDocsUrl.test.ts`, `googleDocsResolver.server.test.ts`, `anthropic-message-mapper.test.ts`) và mở rộng 9 bộ test co-located hiện hữu (`TC-GD-01..12`, `TC-CL-01..04`, `TC-MR-01`), đạt toàn bộ `npm run verify` và Playwright Visual QA 4 góc nhìn (Desktop/Mobile × Dark/Light).
+
+---
+
+## 2026-11-22: Cleanup Legacy Base64 Reference Image Flow & Migrate Variation to 40MB Direct Upload
+
+- **Di cư nút Tạo biến thể (`requestImageVariation`) sang Direct Upload 40 MB (`src/lib/features/image-gen/studioHelpers.ts`)**:
+  - Chuyển `requestImageVariation` từ Base64 sang tải blob, kiểm tra dung lượng `0 < size <= 40 MB`, chuẩn hóa MIME (`normalizeVariationMime`), upload trực tiếp qua `uploadReferenceImages` và truyền `options.referenceImagePaths` (chấm dứt nguy cơ lỗi Vercel `413` với ảnh 4K).
+  - Bổ sung ánh xạ lỗi `40MB` sang khóa song ngữ `studioRefFileTooLarge` trong `classifyStudioError`.
+- **Dọn sạch hoàn toàn mã nguồn chế độ Base64 cũ**:
+  - Xóa `convertReferenceImagesToBase64`, `fileToBase64`, và tham số `referenceImagesBase64` / nhánh `options.referenceImages` trong `studioHelpers.ts`.
+  - Xóa `referenceImage` và `referenceImages` khỏi `ImageGenOptions` (`types.ts`), `imageGenOptionsSchema` / auto-route / `savedOptions` (`src/app/api/generate-image/route.ts` — Zod tự động strip unknown keys từ client cũ), và xóa nhánh parse base64 data URL trong `GeminiNativeImageProvider.ts`.
+- **Kiểm thử**: Cập nhật đồng bộ 3 bộ test co-located (`studioHelpers.test.ts`, `generate-image/route.test.ts`, `GeminiNativeImageProvider.test.ts`) kèm Wiring & Negative Probes (`TC-CLEAN-01..03`, `WP-CLEAN-01..02`, `NP-CLEAN-01..03`).
+
+---
+
+## 2026-11-22: Reference Images 40MB Direct Upload (Image Studio)
+
+- **Nâng giới hạn ảnh tham chiếu lên 40 MB / ảnh (tối đa 4 ảnh) qua Direct Upload**:
+  - Thêm endpoint batch `POST /api/generate-image/reference-upload-url` (`src/app/api/generate-image/reference-upload-url/route.ts`) cấp Signed Upload URLs cho 1–4 ảnh trong 1 request (tiêu tốn 1 lượt rate limit), kèm Auth, Gatekeeper fail-closed (`503`/`403`), kiểm tra sở hữu hội thoại (`assertConversationOwner`), và đường dẫn thuần ASCII `${userId}/${conversationId}/ref-<uuid>.<ext>`.
+  - Tạo module bảo mật `src/lib/features/image-gen/referenceImageStorage.ts` xác thực chống IDOR/Path Traversal, kiểm tra `blob.size <= 40 MB` **trước** `arrayBuffer()` (OOM guard), xác thực magic bytes thực tế (PNG/JPEG/WebP/GIF), và dọn file tạm fail-safe trong `finally` (kể cả khi bị từ chối sớm ở gatekeeper/batchSize/quota).
+  - Nâng cấp `GeminiNativeImageProvider.ts` hỗ trợ `resolvedReferenceImages`: dùng `inlineData` khi tổng `<= 15 MB`, tự động chuyển sang **Gemini Files API** (`ai.files.upload` + `fileData`) trên cùng client (tương thích BYOK) khi `> 15 MB` và xóa ngay qua `ai.files.delete` trong `finally`.
+  - Cập nhật client Image Studio (`uploadPresentation.ts`, `ControlPanelReferenceImages.tsx`, `studioHelpers.ts`, `useImageStudioActions.ts`): đồng bộ whitelist 4 MIME (`image/png,image/jpeg,image/webp,image/gif`), nâng ngưỡng Image Studio lên 40 MB (giữ nguyên 10 MB mặc định cho `TemplateModal`), upload trực tiếp lên Supabase Storage bằng `PUT` (bỏ qua trần 4.5 MB của Vercel), cách ly bộ `ref-<uuid>` cho từng nhánh khi batch `numberOfImages > 1`, và thêm khóa song ngữ VI/EN (`studioRefFileTooLarge`, `studioRefUploadFailed`).
+- **Kiểm thử**: Bổ sung 3 bộ test mới (`referenceImageStorage.test.ts`, `reference-upload-url/route.test.ts`, `GeminiNativeImageProvider.test.ts`) và mở rộng 5 bộ test co-located hiện hữu (`TC-REF-01..11`, `WP-1..3`, `NP-1..5`).
+
+---
+
+## 2026-11-22: Fix Image Studio `57014` Statement Timeout When Generating With Reference Images
+
+- **Ngăn phình JSONB khi lưu tin nhắn ảnh (`src/app/api/generate-image/route.ts`)**:
+  - Loại bỏ trường base64 dung lượng lớn (`referenceImage`, `referenceImages`) khỏi `savedOptions` trước khi lưu vào `messages.meta` (`originalOptions` và `metadata.originalOptions`), chỉ giữ các tùy chọn nhẹ và đính kèm `referenceImageCount` (khi `> 0`), đồng thời vẫn truyền nguyên vẹn ảnh tham chiếu cho `provider.generate(...)`.
+  - Khắc phục triệt để lỗi production HTTP `500` do PostgreSQL `code: '57014'` (`canceling statement due to statement timeout`) khi upscale/tạo ảnh có ảnh tham chiếu trong Image Studio.
+- **Kiểm thử & Bài học**: Bổ sung 4 test case co-located (`TC-GI-META-01..04`) kèm Wiring/Negative Probes trong `src/app/api/generate-image/route.test.ts` và ghi nhận bài học trong `docs/lessons-learned.md`.
+
+---
+
 ## 2026-11-21: Queue-to-Send While Uploading (Auto-Send After Upload Completes)
 
 - **Bít khoảng mù New Chat & đồng bộ hóa luồng tải tệp (`useFileUpload.ts`, `useGlobalFileDropPaste.ts`, `uploadPresentation.ts`)**:

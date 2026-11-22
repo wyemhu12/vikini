@@ -591,6 +591,8 @@ export const en = {
   studioRefImagesDesc: "Add up to 4 images for AI to reference",
   studioAddMoreRef: "Add more",
   studioRefCount: "{{count}}/4 images",
+  studioRefFileTooLarge: "Reference image size must be under 40MB",
+  studioRefUploadFailed: "Failed to upload reference image. Please try again.",
   // QW-E: Retry
   studioRetry: "Retry",
   // QW-F: Cancel
@@ -1832,4 +1834,12 @@ export const en = {
     "Auto-send cancelled because a file failed to upload. Please check and retry.",
   sendWhenUploadsReady: "Will send automatically once uploads finish",
   pendingSendEscHint: "Cancel queued send",
+  // Google Workspace Public Links
+  googleDocsSourcesTitle: "Google documents",
+  googleDocTypeDoc: "Google Docs",
+  googleDocTypeSheet: "Google Sheets",
+  googleDocTypeSlide: "Google Slides",
+  googleDocTextFallback: "Text only",
+  googleDocPrivate: "Private",
+  googleDocUnavailable: "Unavailable",
 } as const;

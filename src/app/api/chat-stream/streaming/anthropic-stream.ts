@@ -10,6 +10,10 @@ import { processPostStream } from "./post-processing";
 import { balanceThinkTags } from "@/lib/features/chat/thinkTags";
 import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.server";
 import { createAnthropicToolTracker } from "./anthropic-tool-helpers";
+import {
+  mapContentsToAnthropicMessages,
+  type IncomingContentMessage,
+} from "./anthropic-message-mapper";
 
 export function createAnthropicStream({
   ai,
@@ -37,6 +41,7 @@ export function createAnthropicStream({
   clientMessageId,
   signal,
   ragSources,
+  initialUrlContext,
 }: Omit<ChatStreamParams, "ai"> & {
   ai: Anthropic;
   enableWebSearch: boolean;
@@ -96,6 +101,9 @@ export function createAnthropicStream({
             model,
             clientMessageId,
             ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
+            ...(initialUrlContext && initialUrlContext.length > 0
+              ? { urlContext: initialUrlContext }
+              : {}),
           },
         });
       } catch (saveErr) {
@@ -120,6 +128,7 @@ export function createAnthropicStream({
         modelMeta,
         model,
         ragSources,
+        initialUrlContext,
       });
 
       // 2. Optimistic Title (instant UX)
@@ -139,46 +148,9 @@ export function createAnthropicStream({
       const collectedSources: Array<{ uri: string; title: string }> = [];
       let streamFailed = false;
       try {
-        // Map contents to Anthropic format with multimodal support
-        // contents: [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
-        // Anthropic: [{ role: "user", content: [{type: "text", text: ""}, {type: "image", source: {...}}] }]
-        type AnthropicMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-        type GeminiPartA = { text?: string; inlineData?: { data: string; mimeType: string } };
-        const anthropicMessages = (contents as Array<{ role: string; parts: GeminiPartA[] }>).map(
-          (m) => {
-            const hasImages = m.parts.some((p) => p.inlineData);
-            if (hasImages) {
-              const contentBlocks: Array<
-                | { type: "text"; text: string }
-                | {
-                    type: "image";
-                    source: { type: "base64"; media_type: AnthropicMediaType; data: string };
-                  }
-              > = [];
-              for (const p of m.parts) {
-                if (p.inlineData) {
-                  contentBlocks.push({
-                    type: "image" as const,
-                    source: {
-                      type: "base64" as const,
-                      media_type: p.inlineData.mimeType as AnthropicMediaType,
-                      data: p.inlineData.data,
-                    },
-                  });
-                } else if (p.text) {
-                  contentBlocks.push({ type: "text" as const, text: p.text });
-                }
-              }
-              return {
-                role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
-                content: contentBlocks,
-              };
-            }
-            return {
-              role: (m.role === "model" ? "assistant" : m.role) as "user" | "assistant",
-              content: m.parts.map((p) => p.text || "").join(""),
-            };
-          }
+        // Map contents to Anthropic format with Native PDF document + multimodal image support
+        const anthropicMessages = mapContentsToAnthropicMessages(
+          contents as IncomingContentMessage[]
         );
 
         // Build tools array for Beta API - code execution, web fetch, web search, function calling
@@ -542,6 +514,8 @@ export function createAnthropicStream({
           setConversationAutoTitle,
           generateFinalTitle,
           sources: uniqueSources.length > 0 ? uniqueSources : undefined,
+          urlContext:
+            initialUrlContext && initialUrlContext.length > 0 ? initialUrlContext : undefined,
           model,
         });
       }

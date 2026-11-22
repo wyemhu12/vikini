@@ -13,6 +13,14 @@ const DEFAULT_REF_IMAGE_MAX_COUNT = 4;
 const DEFAULT_REF_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_PREVIEW_MAX_BYTES = 15 * 1024 * 1024;
 
+export const STUDIO_REF_IMAGE_MAX_BYTES = 40 * 1024 * 1024;
+export const STUDIO_REF_ALLOWED_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+] as const;
+
 const stableFileKeys = new WeakMap<File, string>();
 const imageDataUrlCache = new WeakMap<File, Promise<string | undefined>>();
 let fileKeySequence = 0;
@@ -255,7 +263,8 @@ export function validateReferenceImages(
   files: readonly File[],
   currentCount: number,
   maxCount = DEFAULT_REF_IMAGE_MAX_COUNT,
-  maxBytes = DEFAULT_REF_IMAGE_MAX_BYTES
+  maxBytes = DEFAULT_REF_IMAGE_MAX_BYTES,
+  allowedMimeTypes?: readonly string[]
 ): ReferenceImageValidationResult {
   const accepted: File[] = [];
   let invalidTypeCount = 0;
@@ -264,7 +273,11 @@ export function validateReferenceImages(
   const remaining = Math.max(0, maxCount - currentCount);
 
   for (const file of files) {
-    if (!file.type.startsWith("image/")) {
+    const normalizedType = file.type.toLowerCase();
+    const isAllowedType = allowedMimeTypes
+      ? allowedMimeTypes.includes(normalizedType)
+      : normalizedType.startsWith("image/");
+    if (!isAllowedType) {
       invalidTypeCount += 1;
       continue;
     }

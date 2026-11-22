@@ -12,6 +12,8 @@ import {
   mergeUploadedFileOptimistically,
   readImagePreviewDataUrl,
   revokeSafeObjectUrl,
+  STUDIO_REF_ALLOWED_MIME_TYPES,
+  STUDIO_REF_IMAGE_MAX_BYTES,
   sortComposerFiles,
   validateReferenceImages,
 } from "./uploadPresentation";
@@ -132,6 +134,48 @@ describe("uploadPresentation (TC-SU-05, TC-SU-07)", () => {
       invalidTypeCount: 1,
       tooLargeCount: 1,
       overLimitCount: 1,
+    });
+  });
+
+  it("TC-REF-09 & NP-5: validates 40MB Studio limit and 4-MIME whitelist while preserving 10MB default for TemplateModal", () => {
+    expect(STUDIO_REF_IMAGE_MAX_BYTES).toBe(40 * 1024 * 1024);
+    expect(STUDIO_REF_ALLOWED_MIME_TYPES).toEqual([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "image/gif",
+    ]);
+
+    const img12MB = new File(["a"], "twelve.png", { type: "image/png" });
+    Object.defineProperty(img12MB, "size", { value: 12 * 1024 * 1024 });
+
+    // Default (TemplateModal) still rejects 12MB
+    expect(validateReferenceImages([img12MB], 0, 1)).toEqual({
+      accepted: [],
+      invalidTypeCount: 0,
+      tooLargeCount: 1,
+      overLimitCount: 0,
+    });
+
+    const img35MB = new File(["b"], "big-ok.png", { type: "IMAGE/PNG" });
+    Object.defineProperty(img35MB, "size", { value: 35 * 1024 * 1024 });
+    const img41MB = new File(["c"], "too-big.png", { type: "image/png" });
+    Object.defineProperty(img41MB, "size", { value: 41 * 1024 * 1024 });
+    const svg = new File(["<svg/>"], "vec.svg", { type: "image/svg+xml" });
+    const heic = new File(["heic"], "photo.heic", { type: "image/heic" });
+
+    const studioRes = validateReferenceImages(
+      [img12MB, img35MB, img41MB, svg, heic],
+      0,
+      4,
+      STUDIO_REF_IMAGE_MAX_BYTES,
+      STUDIO_REF_ALLOWED_MIME_TYPES
+    );
+    expect(studioRes).toEqual({
+      accepted: [img12MB, img35MB],
+      invalidTypeCount: 2,
+      tooLargeCount: 1,
+      overLimitCount: 0,
     });
   });
 

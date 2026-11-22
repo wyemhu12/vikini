@@ -7,6 +7,8 @@ import { Image as ImageIcon, Upload, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/store/toastStore";
 import {
+  STUDIO_REF_ALLOWED_MIME_TYPES,
+  STUDIO_REF_IMAGE_MAX_BYTES,
   getStableFileKey,
   readImagePreviewDataUrl,
   validateReferenceImages,
@@ -88,13 +90,19 @@ export default function ControlPanelReferenceImages({
   const addReferenceFiles = useCallback(
     (incoming: File[]) => {
       if (incoming.length === 0) return;
-      const result = validateReferenceImages(incoming, referenceImages.length, MAX_REF_IMAGES);
+      const result = validateReferenceImages(
+        incoming,
+        referenceImages.length,
+        MAX_REF_IMAGES,
+        STUDIO_REF_IMAGE_MAX_BYTES,
+        STUDIO_REF_ALLOWED_MIME_TYPES
+      );
 
       if (result.invalidTypeCount > 0) {
         toast.error(t("describeInvalidImage"));
       }
       if (result.tooLargeCount > 0) {
-        toast.error(t("describeFileTooLarge"));
+        toast.error(t("studioRefFileTooLarge"));
       }
       if (result.overLimitCount > 0) {
         toast.info(t("studioRefMaxReached").replace("{max}", String(MAX_REF_IMAGES)));
@@ -176,7 +184,7 @@ export default function ControlPanelReferenceImages({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={STUDIO_REF_ALLOWED_MIME_TYPES.join(",")}
         multiple
         className="hidden"
         aria-label={t("studioUploadRef")}

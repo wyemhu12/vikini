@@ -52,12 +52,14 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → AI P
 - **Message Organization**: Đánh dấu yêu thích (`PATCH /api/messages/[id]/favorite`) và gắn thẻ phân loại (`PATCH /api/messages/[id]/tag`).
 - **User Prompt Templates & Suggestions**: Quản lý mẫu prompt cá nhân (`GET/POST/DELETE /api/user-templates`) và gợi ý câu lệnh (`POST /api/prompt-suggest`).
 - **Inline Composer Controls**: Bộ chọn Model (`ModelSelector`) và mức độ suy luận (`ThinkingLevelSelector`) tích hợp gọn ngay trong thanh nhập chat (`InputModelControls.tsx` bên trong `InputForm.tsx`).
+- **Google Workspace Public Link Auto-Resolution**: Tự động phát hiện và đọc nội dung link chia sẻ công khai (`Anyone with the link`) của **Google Docs**, **Google Sheets**, và **Google Slides** cho **toàn bộ 12 models** (`googleDocsUrl.ts`, `googleDocsResolver.server.ts`). Mô hình hỗ trợ Native PDF (Gemini 3.5/4, Claude 5.5 Direct & OpenRouter) đọc trực tiếp PDF (bao gồm hình ảnh/bố cục) kèm fallback tự động sang văn bản thuần khi vượt trần dung lượng; mô hình text-only nhận văn bản sạch/Markdown bảng tính và hiển thị chip trạng thái song ngữ trong `SourceLinks.tsx`.
 
 **Files liên quan**:
 
 - `src/app/api/chat-stream/route.ts` - Entry point
 - `src/app/api/chat-stream/chatStreamCore.ts` - Core orchestration logic
-- `src/app/api/chat-stream/streaming/` - Multi-provider SSE stream engines (`gemini-stream.ts`, `anthropic-stream.ts`, `deepseek-stream.ts`, `openai-stream.ts`, `strata-stream.ts`, `post-processing.ts`)
+- `src/lib/features/chat/googleDocsUrl.ts`, `src/lib/features/chat/googleDocsResolver.server.ts` - Public Google Workspace URL parser & server-only SSRF-safe resolver
+- `src/app/api/chat-stream/streaming/` - Multi-provider SSE stream engines (`gemini-stream.ts`, `anthropic-stream.ts`, `anthropic-message-mapper.ts`, `deepseek-stream.ts`, `openai-stream.ts`, `strata-stream.ts`, `post-processing.ts`)
 - `src/lib/features/chat/conversations.ts` - Conversation CRUD & Branching
 - `src/lib/features/chat/messages.ts` - Message CRUD & AES encryption
 - `src/app/api/conversations/[id]/branch/route.ts` - Conversation branching API
@@ -97,7 +99,7 @@ User Input → Rate Limit Check → Daily Limit Check → Build Context → AI P
 2. Upload lên Supabase Storage
 3. Parse/extract text (PDF, text files)
 4. Đếm tokens
-5. Đưa vào context khi chat (inline-first UX)
+5. Đưa vào context khi chat (inline-first UX; Gemini dùng Files API, **Claude 5.5** hỗ trợ Native PDF qua Direct Anthropic `type: "document"` `<= 20 MB` & OpenRouter `type: "file"` `<= 15 MB` với pre-check `size_bytes` và fallback `extracted_text`)
 
 **TTL**: 30 ngày (cleanup qua cron `GET/POST /api/cron/cleanup`)
 

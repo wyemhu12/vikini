@@ -40,6 +40,7 @@ export function createOpenAICompatibleStream(params: {
   clientMessageId?: string;
   signal?: AbortSignal;
   ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
+  initialUrlContext?: Array<{ retrievedUrl: string; status: string }>;
 }): ReadableStream<Uint8Array> {
   const {
     ai,
@@ -66,6 +67,7 @@ export function createOpenAICompatibleStream(params: {
     clientMessageId,
     signal,
     ragSources,
+    initialUrlContext,
   } = params;
 
   const ac = new AbortController();
@@ -109,6 +111,9 @@ export function createOpenAICompatibleStream(params: {
             model,
             clientMessageId,
             ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
+            ...(initialUrlContext && initialUrlContext.length > 0
+              ? { urlContext: initialUrlContext }
+              : {}),
           },
         });
       } catch (saveErr) {
@@ -133,6 +138,7 @@ export function createOpenAICompatibleStream(params: {
         modelMeta,
         model,
         ragSources,
+        initialUrlContext,
       });
 
       // 2. Optimistic Title
@@ -153,45 +159,60 @@ export function createOpenAICompatibleStream(params: {
       let reasoningTokens: number | undefined;
 
       try {
-        // Map contents to OpenAI format with multimodal support
-        // contents from chatStreamCore is [{ role: "user", parts: [{text: ""}, {inlineData: {data, mimeType}}] }]
-        // OpenAI expects: [{ role: "user", content: [{type: "text", text: ""}, {type: "image_url", image_url: {url: "data:..."}}] }]
-        type GeminiPart = { text?: string; inlineData?: { data: string; mimeType: string } };
+        // Map contents to OpenAI format with multimodal image + OpenRouter Claude native PDF support
+        type GeminiPart = {
+          text?: string;
+          inlineData?: { data: string; mimeType: string };
+          filename?: string;
+        };
 
-        // Handle OpenRouter reasoning models (e.g. Grok 4.3)
+        // Handle OpenRouter reasoning models (e.g. Grok 4.3) and OpenRouter Claude PDF fallback
         const isOrReasoning = isOpenRouterReasoningModel(model);
+        const isOpenRouterClaude = model.toLowerCase().startsWith("anthropic/claude");
+        let hasOpenRouterPdf = false;
 
         const openAIMessages = [
           { role: "system" as const, content: sysPrompt },
           ...(contents as Array<{ role: string; parts: GeminiPart[] }>)
             .map((m) => {
-              const hasImages = m.parts.some((p) => p.inlineData);
               const rawContent = m.parts.map((p) => p.text || "").join("");
               const isModel = m.role === "model";
               // Strip <think> tags from old history to avoid sending raw thought blocks to model (m-16)
               const cleanContent = isModel ? stripThinkTags(rawContent) : rawContent;
 
-              if (hasImages) {
-                if (isModel) {
-                  // OpenAI spec prohibits image_url in assistant role -> degrade to pure text (m-2)
-                  return {
-                    role: "assistant" as const,
-                    content: cleanContent,
-                  };
-                }
+              const hasSupportedBinaryParts = m.parts.some(
+                (p) =>
+                  Boolean(p.inlineData) &&
+                  (p.inlineData!.mimeType.startsWith("image/") ||
+                    (isOpenRouterClaude && p.inlineData!.mimeType === "application/pdf"))
+              );
+
+              if (hasSupportedBinaryParts && !isModel) {
                 // Multimodal user message: use content array format
                 const contentParts: Array<
-                  { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+                  | { type: "text"; text: string }
+                  | { type: "image_url"; image_url: { url: string } }
+                  | { type: "file"; file: { filename: string; file_data: string } }
                 > = [];
                 if (cleanContent) {
                   contentParts.push({ type: "text" as const, text: cleanContent });
                 }
                 for (const p of m.parts) {
-                  if (p.inlineData) {
+                  if (!p.inlineData) continue;
+                  if (p.inlineData.mimeType.startsWith("image/")) {
                     contentParts.push({
                       type: "image_url" as const,
                       image_url: {
                         url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
+                      },
+                    });
+                  } else if (isOpenRouterClaude && p.inlineData.mimeType === "application/pdf") {
+                    hasOpenRouterPdf = true;
+                    contentParts.push({
+                      type: "file" as const,
+                      file: {
+                        filename: p.filename || "document.pdf",
+                        file_data: `data:application/pdf;base64,${p.inlineData.data}`,
                       },
                     });
                   }
@@ -230,6 +251,10 @@ export function createOpenAICompatibleStream(params: {
           temperature: 0.7,
           max_tokens: maxTokens,
         };
+
+        if (isOpenRouterClaude && hasOpenRouterPdf) {
+          createParams.plugins = [{ id: "file-parser", pdf: { engine: "native" } }];
+        }
 
         if (isGLMModel(model)) {
           createParams.provider = {
@@ -453,6 +478,8 @@ export function createOpenAICompatibleStream(params: {
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          urlContext:
+            initialUrlContext && initialUrlContext.length > 0 ? initialUrlContext : undefined,
           usageMetadata,
           isActuallyBlocked: false,
           shouldGenerateTitle,

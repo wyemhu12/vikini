@@ -530,5 +530,131 @@ describe("createOpenAICompatibleStream - GLM 5.2, Grok Reasoning & Error Mapping
         })
       );
     });
+
+    it("TC-CL-02 (NP): maps PDF file block + plugins ONLY for OpenRouter Claude with PDF, omits plugins for text-only, and keeps content: string for Groq/Grok/GLM/DeepSeek V3.2", async () => {
+      const initialUrlContext = [
+        {
+          retrievedUrl: "https://docs.google.com/document/d/1OrClaudeDoc1234567/edit",
+          status: "GOOGLE_DOC_PDF",
+        },
+      ];
+
+      // 1. OpenRouter Claude WITH PDF -> sends type: "file" + plugins
+      const pdfStream = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "anthropic/claude-sonnet-5.5",
+        ai: mockAi,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: "Read PDF" },
+              {
+                inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQ=" },
+                filename: "Spec.pdf",
+              },
+            ],
+          },
+        ],
+        initialUrlContext,
+      });
+      const { sendInitialMetaEvents } = await import("./gemini-stream");
+      const { processPostStream } = await import("./post-processing");
+      await consumeStream(pdfStream);
+      expect(sendInitialMetaEvents).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ initialUrlContext })
+      );
+      expect(processPostStream).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ urlContext: initialUrlContext })
+      );
+      const orPayload = mockCreate.mock.calls[0][0];
+      expect(orPayload.plugins).toEqual([{ id: "file-parser", pdf: { engine: "native" } }]);
+      expect(orPayload.messages[1].content).toEqual([
+        { type: "text", text: "Read PDF" },
+        {
+          type: "file",
+          file: {
+            filename: "Spec.pdf",
+            file_data: "data:application/pdf;base64,JVBERi0xLjQ=",
+          },
+        },
+      ]);
+
+      // 2. Negative Probe: OpenRouter Claude text-only -> MUST NOT attach plugins
+      mockCreate.mockClear();
+      const textOnlyStream = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "anthropic/claude-sonnet-5.5",
+        ai: mockAi,
+        contents: [{ role: "user", parts: [{ text: "Plain question" }] }],
+      });
+      await consumeStream(textOnlyStream);
+      expect(mockCreate.mock.calls[0][0].plugins).toBeUndefined();
+
+      // 3. Negative Probe: Groq / Grok / GLM / DeepSeek V3.2 with filtered PDF part -> MUST stay string content (never [] or image_url)
+      for (const nonClaudeModel of [
+        "openai/gpt-oss-120b",
+        "x-ai/grok-4.7",
+        "z-ai/glm-5.2",
+        "deepseek/deepseek-v3.2:floor",
+      ]) {
+        mockCreate.mockClear();
+        const s = createOpenAICompatibleStream({
+          ...baseParams,
+          model: nonClaudeModel,
+          ai: mockAi,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: "Extracted text" },
+                { inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQ=" } },
+              ],
+            },
+          ],
+        });
+        await consumeStream(s);
+        const p = mockCreate.mock.calls[0][0];
+        expect(p.plugins).toBeUndefined();
+        expect(typeof p.messages[1].content).toBe("string");
+        expect(p.messages[1].content).toBe("Extracted text");
+      }
+
+      // 4. savePartialOnce persists initialUrlContext on abort
+      const upsertMock = vi.fn().mockResolvedValue({});
+      const ac = new AbortController();
+      mockCreate.mockImplementationOnce(async () => ({
+        [Symbol.asyncIterator]() {
+          let i = 0;
+          return {
+            async next() {
+              if (i === 0) {
+                i++;
+                return { value: { choices: [{ delta: { content: "Half" } }] }, done: false };
+              }
+              ac.abort();
+              return { value: undefined, done: true };
+            },
+          };
+        },
+      }));
+      const aborted = createOpenAICompatibleStream({
+        ...baseParams,
+        model: "x-ai/grok-4.7",
+        ai: mockAi,
+        signal: ac.signal,
+        upsertAssistantMessage: upsertMock,
+        initialUrlContext,
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+      });
+      await consumeStream(aborted);
+      expect(upsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: expect.objectContaining({ urlContext: initialUrlContext }),
+        })
+      );
+    });
   });
 });

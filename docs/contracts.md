@@ -54,7 +54,7 @@ interface MessageMeta {
   type?: "image_gen" | "image_edit" | "text" | "chart";
   sources?: WebSearchSource[]; // Kết quả web search grounding
   ragSources?: RagSource[]; // Trích dẫn Knowledge Base RAG
-  urlContext?: Array<{ retrievedUrl: string; status: string }>; // URL Context grounding
+  urlContext?: Array<{ retrievedUrl: string; status: string }>; // URL Context grounding & Google Workspace public link status (`GOOGLE_DOC_PDF` | `GOOGLE_DOC_TEXT` | `GOOGLE_DOC_TEXT_FALLBACK` | `GOOGLE_SHEET_XLSX` | `GOOGLE_SHEET_CSV_FALLBACK` | `GOOGLE_SLIDES_PDF` | `GOOGLE_SLIDES_TEXT` | `GOOGLE_SLIDES_TEXT_FALLBACK` | `GOOGLE_DOC_PRIVATE` | `GOOGLE_DOC_NOT_FOUND` | `GOOGLE_DOC_TIMEOUT` | `GOOGLE_DOC_ERROR`)
   reasoning?: string; // Khối suy luận tách biệt (được mã hóa AES-256-GCM khi lưu DB)
   /** @deprecated Use thoughtSignatures array instead */
   thoughtSignature?: string;
@@ -339,7 +339,7 @@ type MetaEventPayload =
   | { type: "optimisticTitle"; conversationId: string; title: string }
   | { type: "finalTitle"; conversationId: string; title: string }
   | { type: "sources"; sources: WebSearchSource[] }
-  | { type: "urlContext"; urls: Array<{ retrievedUrl: string; status: string }> }
+  | { type: "urlContext"; urls: Array<{ retrievedUrl: string; status: string }> } // Emitted at stream start for resolved Google Workspace links across all 5 engines and merged with native Gemini urlContextMetadata without overwriting
   | {
       type: "safety";
       blocked: boolean;

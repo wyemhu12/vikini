@@ -603,6 +603,8 @@ export const vi = {
   studioRefImagesDesc: "Thêm tối đa 4 ảnh để AI tham chiếu",
   studioAddMoreRef: "Thêm ảnh",
   studioRefCount: "{{count}}/4 ảnh",
+  studioRefFileTooLarge: "Dung lượng ảnh tham chiếu phải nhỏ hơn 40MB",
+  studioRefUploadFailed: "Không thể tải lên ảnh tham chiếu. Vui lòng thử lại.",
   // QW-E: Retry
   studioRetry: "Thử lại",
   // QW-F: Cancel
@@ -1840,4 +1842,12 @@ export const vi = {
     "Đã hủy tự động gửi vì có tệp tải lên thất bại. Vui lòng kiểm tra lại.",
   sendWhenUploadsReady: "Sẽ tự động gửi khi tải tệp xong",
   pendingSendEscHint: "Hủy chờ gửi",
+  // Google Workspace Public Links
+  googleDocsSourcesTitle: "Tài liệu Google đã đọc",
+  googleDocTypeDoc: "Google Docs",
+  googleDocTypeSheet: "Google Sheets",
+  googleDocTypeSlide: "Google Slides",
+  googleDocTextFallback: "Chỉ văn bản",
+  googleDocPrivate: "Riêng tư",
+  googleDocUnavailable: "Không thể đọc",
 } as const;

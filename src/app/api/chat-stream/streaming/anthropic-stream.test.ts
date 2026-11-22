@@ -338,4 +338,100 @@ describe("createAnthropicStream (M-1, M-2, m-15)", () => {
     expect(callArg.thinking).toBeUndefined();
     expect(callArg.temperature).toBe(0.7);
   });
+
+  it("TC-CL-01: sends native PDF document block, emits & persists initialUrlContext, and saves urlContext in savePartialOnce on abort", async () => {
+    const { processPostStream } = await import("./post-processing");
+    const initialUrlContext = [
+      {
+        retrievedUrl: "https://docs.google.com/document/d/1ClaudeDoc1234567890/edit",
+        status: "GOOGLE_DOC_PDF",
+      },
+    ];
+
+    mockAi.beta.messages.create.mockResolvedValueOnce(
+      createAsyncIterable([
+        { type: "content_block_delta", delta: { type: "text_delta", text: "Reviewed PDF" } },
+      ])
+    );
+
+    const stream = createAnthropicStream({
+      ...baseParams,
+      ai: mockAi as unknown as Anthropic,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "Review proposal" },
+            {
+              inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQ=" },
+              filename: "Proposal.pdf",
+            },
+          ],
+        },
+      ],
+      initialUrlContext,
+    });
+
+    const output = await readStream(stream);
+    expect(output).toContain('"type":"urlContext"');
+    expect(output).toContain("GOOGLE_DOC_PDF");
+
+    const callArg = mockAi.beta.messages.create.mock.calls[0][0] as {
+      messages: Array<{ role: string; content: unknown }>;
+    };
+    expect(callArg.messages[0]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "Review proposal" },
+        {
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: "JVBERi0xLjQ=" },
+          title: "Proposal.pdf",
+        },
+      ],
+    });
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ urlContext: initialUrlContext })
+    );
+
+    // Abort mid-stream -> savePartialOnce persists initialUrlContext
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const ac = new AbortController();
+    mockAi.beta.messages.create.mockResolvedValueOnce({
+      [Symbol.asyncIterator]() {
+        let step = 0;
+        return {
+          async next() {
+            if (step === 0) {
+              step++;
+              return {
+                value: {
+                  type: "content_block_delta",
+                  delta: { type: "text_delta", text: "Partial" },
+                },
+                done: false,
+              };
+            }
+            ac.abort();
+            return { value: undefined, done: true };
+          },
+        };
+      },
+    });
+
+    const abortedStream = createAnthropicStream({
+      ...baseParams,
+      ai: mockAi as unknown as Anthropic,
+      signal: ac.signal,
+      upsertAssistantMessage: upsertMock,
+      initialUrlContext,
+    });
+    await readStream(abortedStream);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ urlContext: initialUrlContext }),
+      })
+    );
+  });
 });

@@ -8,19 +8,37 @@ import {
 import { waitForGeminiFileActive } from "@/lib/features/files/geminiFiles.server";
 import { isGeminiNativeMime } from "@/lib/features/files/fileValidation";
 import { extractDocumentText } from "@/lib/features/files/documentParsers";
+import { getModelPdfCapability, type PdfCapability } from "@/lib/core/modelRegistry";
 import { estimateTokens } from "@/lib/utils/tokenEstimate";
 import { coreLogger } from "./chatStreamHelpers";
 import type { FileRow } from "@/types/files";
 
 const MAX_IMAGES = 30;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB
+const MAX_CLAUDE_DIRECT_PDF_BYTES = 20 * 1024 * 1024; // 20MB
+const MAX_OPENROUTER_CLAUDE_PDF_BYTES = 15 * 1024 * 1024; // 15MB
+const MAX_TOTAL_PDF_BYTES_PER_TURN = 25 * 1024 * 1024; // 25MB
 const ATTACHMENT_SAFETY_BUFFER = 2000;
+
+function hasPdfMagicBytes(bytes: Uint8Array): boolean {
+  return (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  );
+}
 
 interface ProcessContext {
   userId: string;
   isGemini: boolean;
+  pdfCapability: PdfCapability;
   modelLimitTokens: number;
   remainingTokens: number;
+  remainingPdfBytes: number;
+  pdfBytesUsed: number;
   imgCount: number;
   signal?: AbortSignal;
 }
@@ -121,6 +139,49 @@ async function processSingleFile(
     return parts;
   }
 
+  // 3.5. Native PDF for Claude (Direct Anthropic <= 20MB, OpenRouter Claude <= 15MB)
+  // Applied for newly attached PDFs or historical scanned PDFs without extracted_text.
+  const isPdfFile = mime === "application/pdf" || name.toLowerCase().endsWith(".pdf");
+  const isClaudePdfCapable =
+    ctx.pdfCapability === "anthropic-direct" || ctx.pdfCapability === "openrouter-claude";
+  if (isClaudePdfCapable && isPdfFile && (isNewlyAttached || !f.extracted_text)) {
+    const maxPdfBytes =
+      ctx.pdfCapability === "openrouter-claude"
+        ? MAX_OPENROUTER_CLAUDE_PDF_BYTES
+        : MAX_CLAUDE_DIRECT_PDF_BYTES;
+    const preCheckTooLarge =
+      typeof f.size_bytes === "number" &&
+      f.size_bytes > 0 &&
+      (f.size_bytes > maxPdfBytes || f.size_bytes > ctx.remainingPdfBytes);
+
+    if (!preCheckTooLarge) {
+      try {
+        const result = await downloadFileBytes({ userId: ctx.userId, id: f.id });
+        if (
+          result.bytes.length <= maxPdfBytes &&
+          result.bytes.length <= ctx.remainingPdfBytes &&
+          hasPdfMagicBytes(result.bytes)
+        ) {
+          ctx.remainingPdfBytes -= result.bytes.length;
+          ctx.pdfBytesUsed += result.bytes.length;
+          parts.push({ text: `\n[PDF: ${name}${priorityLabel} | application/pdf]\n` });
+          parts.push({
+            inlineData: { data: result.bytes.toString("base64"), mimeType: "application/pdf" },
+            filename: name,
+          });
+          return parts;
+        }
+        coreLogger.warn(
+          `[FILES] Claude native PDF skipped for ${name} (invalid magic bytes or exceeds cap), falling back to extracted text`
+        );
+      } catch (err: unknown) {
+        coreLogger.warn(
+          `[FILES] Claude native PDF download failed for ${name}: ${err instanceof Error ? err.message : "Unknown"}`
+        );
+      }
+    }
+  }
+
   // 4. Documents / Text / Code
   if (ctx.remainingTokens <= 0) {
     parts.push({ text: `\n[FILE SKIPPED: ${name} - context token limit reached]\n` });
@@ -192,9 +253,19 @@ export async function processAttachments(
   priorityFileIds?: string[],
   contentsMeta?: Array<{ messageId?: string; fileIds?: string[] }>,
   signal?: AbortSignal
-): Promise<{ contents: Array<{ role: string; parts: unknown[] }>; sysPrompt: string }> {
+): Promise<{
+  contents: Array<{ role: string; parts: unknown[] }>;
+  sysPrompt: string;
+  remainingTokens?: number;
+  pdfBytesUsed?: number;
+}> {
+  const initialRemainingTokens = Math.max(
+    0,
+    modelLimitTokens - currentTokenCount - ATTACHMENT_SAFETY_BUFFER
+  );
   try {
-    const isGemini = model.startsWith("gemini-");
+    const pdfCapability = getModelPdfCapability(model);
+    const isGemini = pdfCapability === "gemini";
 
     // Load conversation files with tenant isolation
     let fileRows: FileRow[] = [];
@@ -202,11 +273,11 @@ export async function processAttachments(
       fileRows = await listFiles({ userId, conversationId });
     } catch (e) {
       coreLogger.warn("Failed to load files:", e);
-      return { contents, sysPrompt };
+      return { contents, sysPrompt, remainingTokens: initialRemainingTokens, pdfBytesUsed: 0 };
     }
 
     if (fileRows.length === 0) {
-      return { contents, sysPrompt };
+      return { contents, sysPrompt, remainingTokens: initialRemainingTokens, pdfBytesUsed: 0 };
     }
 
     const fileMap = new Map<string, FileRow>(fileRows.map((f) => [f.id, f]));
@@ -215,8 +286,11 @@ export async function processAttachments(
     const ctx: ProcessContext = {
       userId,
       isGemini,
+      pdfCapability,
       modelLimitTokens,
-      remainingTokens: Math.max(0, modelLimitTokens - currentTokenCount - ATTACHMENT_SAFETY_BUFFER),
+      remainingTokens: initialRemainingTokens,
+      remainingPdfBytes: MAX_TOTAL_PDF_BYTES_PER_TURN,
+      pdfBytesUsed: 0,
       imgCount: 0,
       signal,
     };
@@ -304,9 +378,14 @@ export async function processAttachments(
       }
     }
 
-    return { contents: updatedContents, sysPrompt: updatedSysPrompt };
+    return {
+      contents: updatedContents,
+      sysPrompt: updatedSysPrompt,
+      remainingTokens: ctx.remainingTokens,
+      pdfBytesUsed: ctx.pdfBytesUsed,
+    };
   } catch (e) {
     coreLogger.error("file context error:", e);
-    return { contents, sysPrompt };
+    return { contents, sysPrompt, remainingTokens: initialRemainingTokens, pdfBytesUsed: 0 };
   }
 }

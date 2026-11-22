@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { processPostStream } from "./post-processing";
+import {
+  processPostStream,
+  mergeUrlContextEntries,
+  processUrlContextMetadata,
+} from "./post-processing";
 import type { ChatStreamParams } from "./types";
 
 describe("processPostStream (M-1, M-9, m-16)", () => {
@@ -164,5 +168,66 @@ describe("processPostStream (M-1, M-9, m-16)", () => {
         }),
       })
     );
+  });
+
+  describe("mergeUrlContextEntries & processUrlContextMetadata (TC-CL-04)", () => {
+    it("preserves initialUrlContext without emitting an overwriting SSE frame when native metadata is null or empty", () => {
+      const initial = [
+        {
+          retrievedUrl: "https://docs.google.com/document/d/1DocId1234567890/edit",
+          status: "GOOGLE_DOC_PDF",
+        },
+      ];
+
+      const resNull = processUrlContextMetadata(controller, null, initial);
+      expect(resNull).toEqual(initial);
+      expect(controller.enqueue).not.toHaveBeenCalled();
+
+      const resEmpty = processUrlContextMetadata(controller, { urlMetadata: [] }, initial);
+      expect(resEmpty).toEqual(initial);
+      expect(controller.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("merges and deduplicates initial Google Docs entries with native URL metadata while preserving Google Docs status", () => {
+      const initial = [
+        {
+          retrievedUrl: "https://docs.google.com/document/d/1DocId1234567890/edit",
+          status: "GOOGLE_DOC_PDF",
+        },
+      ];
+
+      const merged = processUrlContextMetadata(
+        controller,
+        {
+          urlMetadata: [
+            {
+              retrievedUrl: "https://docs.google.com/document/d/1DocId1234567890/edit",
+              urlRetrievalStatus: "URL_RETRIEVAL_STATUS_ERROR",
+            },
+            {
+              retrievedUrl: "https://example.com/article",
+              urlRetrievalStatus: "URL_RETRIEVAL_STATUS_SUCCESS",
+            },
+          ],
+        },
+        initial
+      );
+
+      expect(merged).toEqual([
+        {
+          retrievedUrl: "https://docs.google.com/document/d/1DocId1234567890/edit",
+          status: "GOOGLE_DOC_PDF",
+        },
+        {
+          retrievedUrl: "https://example.com/article",
+          status: "URL_RETRIEVAL_STATUS_SUCCESS",
+        },
+      ]);
+      expect(controller.enqueue).toHaveBeenCalledTimes(1);
+
+      expect(mergeUrlContextEntries(initial, [{ retrievedUrl: "  ", status: "X" }])).toEqual(
+        initial
+      );
+    });
   });
 });

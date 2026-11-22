@@ -4,6 +4,14 @@ import { logger } from "@/lib/utils/logger";
 
 const providerLogger = logger.withContext("GeminiNativeImageProvider");
 
+/** Total reference image size above which we switch from inlineData to Gemini Files API. */
+export const INLINE_REF_IMAGE_THRESHOLD_BYTES = 15 * 1024 * 1024; // 15 MB
+
+type GeminiContentPart =
+  | { text: string }
+  | { inlineData: { data: string; mimeType: string } }
+  | { fileData: { fileUri: string; mimeType: string } };
+
 /**
  * Gemini Native Image Provider - uses generateContent API
  * for Nano Banana models (gemini-3.1-flash-image, gemini-3-pro-image).
@@ -29,6 +37,8 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
     const modelId = options?.model || "gemini-3.1-flash-image";
 
     providerLogger.info(`Generating with model: ${modelId} (Native Image Gen)`);
+
+    const uploadedGeminiFileNames: string[] = [];
 
     try {
       // MT5: Use detailed style instructions instead of simple append
@@ -64,30 +74,44 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
         config.imageConfig = imageConfig;
       }
 
-      // Build contents with optional reference image(s)
-      // Supports both single referenceImage (backward compat) and referenceImages array
-      let contentParts: Array<
-        { text: string } | { inlineData: { data: string; mimeType: string } }
-      >;
+      // Build contents with optional direct-uploaded reference image(s)
+      let contentParts: GeminiContentPart[];
 
-      const referenceImageSources =
-        options?.referenceImages || (options?.referenceImage ? [options.referenceImage] : []);
+      const resolvedRefs = options?.resolvedReferenceImages;
 
-      if (referenceImageSources.length > 0) {
+      if (resolvedRefs && resolvedRefs.length > 0) {
         contentParts = [];
-        for (const refImg of referenceImageSources) {
-          const dataUrlMatch = refImg.match(/^data:([\w/+.-]+);base64,(.+)$/);
-          if (dataUrlMatch) {
-            contentParts.push({ inlineData: { data: dataUrlMatch[2], mimeType: dataUrlMatch[1] } });
-          } else {
-            providerLogger.warn("Invalid referenceImage data URL format, skipping");
+        const totalBytes = resolvedRefs.reduce((sum, img) => sum + img.sizeBytes, 0);
+
+        if (totalBytes <= INLINE_REF_IMAGE_THRESHOLD_BYTES) {
+          for (const img of resolvedRefs) {
+            contentParts.push({
+              inlineData: { data: img.buffer.toString("base64"), mimeType: img.mimeType },
+            });
+          }
+        } else {
+          for (const img of resolvedRefs) {
+            const blob = new Blob([new Uint8Array(img.buffer)], { type: img.mimeType });
+            const uploaded = await ai.files.upload({
+              file: blob,
+              config: {
+                mimeType: img.mimeType,
+                displayName: img.filename || "ref-image",
+              },
+            });
+            if (!uploaded?.uri || !uploaded?.name) {
+              throw new Error("Failed to upload reference image to Gemini Files API");
+            }
+            uploadedGeminiFileNames.push(uploaded.name);
+            contentParts.push({
+              fileData: {
+                fileUri: uploaded.uri,
+                mimeType: uploaded.mimeType || img.mimeType,
+              },
+            });
           }
         }
         contentParts.push({ text: finalPrompt });
-        // If no valid images were parsed, fall back to text-only
-        if (contentParts.length === 1) {
-          providerLogger.warn("No valid reference images parsed, using text-only prompt");
-        }
       } else {
         contentParts = [{ text: finalPrompt }];
       }
@@ -207,6 +231,19 @@ export class GeminiNativeImageProvider implements ImageGenProvider {
       throw new Error(
         `Gemini Image Generation Failed: ${error instanceof Error ? error.message : String(error)}`
       );
+    } finally {
+      if (uploadedGeminiFileNames.length > 0) {
+        await Promise.allSettled(
+          uploadedGeminiFileNames.map((name) =>
+            ai.files.delete({ name }).catch((delErr: unknown) => {
+              providerLogger.warn("Failed to delete temporary Gemini file:", {
+                name,
+                error: delErr,
+              });
+            })
+          )
+        );
+      }
     }
   }
 }

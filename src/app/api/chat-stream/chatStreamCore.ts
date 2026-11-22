@@ -18,13 +18,22 @@ import {
   isStrataLocalModel,
 } from "@/lib/core/modelRegistry";
 import { CLAUDE_API_MODELS, MODEL_IDS, STRATA_DEFAULTS } from "@/lib/utils/constants";
+import { getStrataConfig } from "@/lib/core/strataConfig";
 import { getStrataAdmission } from "@/lib/core/strataQueue";
-import type { StrataSamplingInput } from "@/lib/features/local-llm/strataThinking";
+import {
+  resolveStrataThinkingPlan,
+  type StrataSamplingInput,
+} from "@/lib/features/local-llm/strataThinking";
 import { getOrCreateCompositeCache } from "@/lib/core/contextCache";
 import { assertModelAllowedForUser, getUserLimits } from "@/lib/core/limits";
 import { error } from "@/lib/utils/apiResponse";
 import { AppError } from "@/lib/utils/errors";
+import { estimateTokens } from "@/lib/utils/tokenEstimate";
 import { saveMessage as insertUserMessage, upsertMessage } from "@/lib/features/chat/messages";
+import {
+  resolveGoogleWorkspaceLinks,
+  cleanupTempGeminiFiles,
+} from "@/lib/features/chat/googleDocsResolver.server";
 import { linkFilesToMessage } from "@/lib/features/files/fileService.server";
 import { setConversationAutoTitle } from "@/lib/features/chat/conversations";
 import { getGemInstructionsForConversation } from "@/lib/features/gems/gems";
@@ -192,7 +201,7 @@ export async function handleChatStreamCore({
   );
 
   // Process files + attachments (provider-aware, with priority for newly attached files)
-  const { contents, sysPrompt: finalSysPrompt } = await processAttachments(
+  const attachmentResult = await processAttachments(
     userId,
     conversationId,
     messageContext.contents,
@@ -205,7 +214,10 @@ export async function handleChatStreamCore({
     req?.signal
   );
 
-  // Inject Chart Generation Protocol
+  // Preserve exact gemMeta semantics (computed before appending chartProtocol / Google Docs guard)
+  const baseSysPromptForGemMeta = attachmentResult.sysPrompt;
+
+  // Inject Chart Generation Protocol BEFORE computing Strata current-turn doc budget
   const chartProtocol = `
 \n\n[CHART GENERATION PROTOCOL]
 If the user asks to visualize data, output a JSON code block (language="json").
@@ -222,7 +234,42 @@ The JSON must follow this schema exactly:
 DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when specifically asked for a chart or visualization.
 `;
 
-  const finalSysPromptWithCharts = (finalSysPrompt || "") + chartProtocol;
+  const sysPromptWithCharts = (attachmentResult.sysPrompt || "") + chartProtocol;
+
+  // Compute remaining token budget for public Google Workspace links
+  const defaultCloudRemainingTokens = Math.max(
+    0,
+    modelLimitTokens - messageContext.currentTokenCount - 2000
+  );
+  const remainingTokensForDocs = isLocalModel
+    ? computeStrataDocsTokenBudget(
+        attachmentResult.contents,
+        sysPromptWithCharts,
+        content,
+        thinkingLevel
+      )
+    : (attachmentResult.remainingTokens ?? defaultCloudRemainingTokens);
+
+  const googleDocsResult = await resolveGoogleWorkspaceLinks({
+    content,
+    contents: attachmentResult.contents,
+    sysPrompt: sysPromptWithCharts,
+    model,
+    isLocalModel,
+    remainingTokens: remainingTokensForDocs,
+    existingPdfBytesUsed: attachmentResult.pdfBytesUsed ?? 0,
+    signal: req?.signal,
+  });
+
+  const contents = googleDocsResult.contents;
+  const finalSysPromptWithCharts = googleDocsResult.sysPrompt;
+  const tempGeminiFileNames = googleDocsResult.tempGeminiFileNames;
+
+  // If client aborted while fetching Google Docs, clean up any temporary Gemini files and exit early
+  if (req?.signal?.aborted) {
+    await cleanupTempGeminiFiles(tempGeminiFileNames);
+    return new Response(null, { status: 499 });
+  }
 
   // Setup web search (server-enforced against preloaded user rank limits) and safety settings
   const cookies = parseCookieHeader(req?.headers?.get?.("cookie") || undefined);
@@ -274,8 +321,11 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
   // Build shared meta objects
   const gemMeta = {
     gemId: conversation?.gemId ?? null,
-    hasSystemInstruction: Boolean(finalSysPrompt && String(finalSysPrompt).trim()),
-    systemInstructionChars: typeof finalSysPrompt === "string" ? finalSysPrompt.length : 0,
+    hasSystemInstruction: Boolean(
+      baseSysPromptForGemMeta && String(baseSysPromptForGemMeta).trim()
+    ),
+    systemInstructionChars:
+      typeof baseSysPromptForGemMeta === "string" ? baseSysPromptForGemMeta.length : 0,
     error: gemLoadError || "",
   };
   const modelMeta = {
@@ -305,27 +355,41 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
     clientMessageId: clientMessageId || undefined,
     signal: req.signal,
     ragSources,
+    ...(googleDocsResult.urlContext.length > 0
+      ? { initialUrlContext: googleDocsResult.urlContext }
+      : {}),
   };
 
-  // Route to provider-specific stream
-  const stream = await createProviderStream({
-    model,
-    requestedModel,
-    finalSysPromptWithCharts,
-    contents,
-    contentsMeta: messageContext.contentsMeta,
-    tools,
-    safetySettings,
-    toolConfig,
-    gemMeta,
-    modelMeta,
-    sharedParams,
-    thinkingLevel,
-    strataSampling,
-    regenerate: Boolean(regenerate),
-  });
+  // Route to provider-specific stream (clean up temporary Gemini files on init failure)
+  let stream: ReadableStream | Response;
+  try {
+    stream = await createProviderStream({
+      model,
+      requestedModel,
+      finalSysPromptWithCharts,
+      contents,
+      contentsMeta: messageContext.contentsMeta,
+      tools,
+      safetySettings,
+      toolConfig,
+      gemMeta,
+      modelMeta,
+      sharedParams,
+      thinkingLevel,
+      strataSampling,
+      regenerate: Boolean(regenerate),
+      onStreamFinally:
+        tempGeminiFileNames.length > 0
+          ? () => cleanupTempGeminiFiles(tempGeminiFileNames)
+          : undefined,
+    });
+  } catch (err: unknown) {
+    await cleanupTempGeminiFiles(tempGeminiFileNames);
+    throw err;
+  }
 
   if (stream instanceof Response) {
+    await cleanupTempGeminiFiles(tempGeminiFileNames);
     return stream; // Error response from provider init
   }
 
@@ -342,6 +406,49 @@ DO NOT output the chart as an image or ASCII art. Use this JSON format ONLY when
 // --- INTERNAL HELPERS ---
 
 const MAX_SYSTEM_PROMPT_CHARS = 12000;
+
+function computeStrataDocsTokenBudget(
+  contentsAfterAttachments: Array<{ role: string; parts: unknown[] }>,
+  currentSysPrompt: string,
+  fallbackUserContent: string,
+  level: unknown
+): number {
+  let contextWindow: number = STRATA_DEFAULTS.CONTEXT_WINDOW;
+  try {
+    contextWindow = getStrataConfig().contextWindow;
+  } catch {
+    contextWindow = STRATA_DEFAULTS.CONTEXT_WINDOW;
+  }
+
+  let promptBudgetTokens: number;
+  try {
+    promptBudgetTokens = resolveStrataThinkingPlan(level, contextWindow).promptBudgetTokens;
+  } catch {
+    promptBudgetTokens = resolveStrataThinkingPlan(
+      level,
+      STRATA_DEFAULTS.CONTEXT_WINDOW
+    ).promptBudgetTokens;
+  }
+
+  // Divide by 1.25 to stay strictly inside fitStrataPrompt()'s 1.25x heuristic fallback multiplier
+  const safePromptBudget = Math.floor(promptBudgetTokens / 1.25);
+
+  // Subtract ONLY current-turn tokens (system + chartProtocol + last user message after attachments),
+  // NEVER messageContext.currentTokenCount (which sums up to 128K un-trimmed history).
+  const lastUserMsg = [...contentsAfterAttachments].reverse().find((m) => m.role === "user");
+  const lastUserText = Array.isArray(lastUserMsg?.parts)
+    ? lastUserMsg.parts
+        .map((p) =>
+          typeof p === "object" && p !== null && "text" in p && typeof p.text === "string"
+            ? p.text
+            : ""
+        )
+        .join("")
+    : fallbackUserContent;
+
+  const currentTurnTokens = estimateTokens(currentSysPrompt) + estimateTokens(lastUserText);
+  return Math.max(0, safePromptBudget - currentTurnTokens - 1024);
+}
 
 async function buildSystemPrompt(
   userId: string,
@@ -490,6 +597,7 @@ interface CreateProviderStreamParams {
   thinkingLevel?: string;
   strataSampling?: StrataSamplingInput;
   regenerate: boolean;
+  onStreamFinally?: () => Promise<void>;
 }
 
 async function createProviderStream(
@@ -509,6 +617,7 @@ async function createProviderStream(
     thinkingLevel,
     strataSampling,
     regenerate,
+    onStreamFinally,
   } = params;
 
   if (isStrataLocalModel(model)) {
@@ -651,6 +760,7 @@ async function createProviderStream(
     sharedParams,
     thinkingLevel,
     regenerate,
+    onStreamFinally,
   });
 }
 
@@ -667,6 +777,7 @@ interface GeminiStreamParams {
   sharedParams: Record<string, unknown>;
   thinkingLevel?: string;
   regenerate: boolean;
+  onStreamFinally?: () => Promise<void>;
 }
 
 async function createGeminiStream(params: GeminiStreamParams): Promise<ReadableStream> {
@@ -683,6 +794,7 @@ async function createGeminiStream(params: GeminiStreamParams): Promise<ReadableS
     sharedParams,
     thinkingLevel,
     regenerate,
+    onStreamFinally,
   } = params;
 
   // ================================================================
@@ -730,5 +842,6 @@ async function createGeminiStream(params: GeminiStreamParams): Promise<ReadableS
     ...sharedParams,
     regenerate,
     thinkingLevel,
+    onStreamFinally,
   } as unknown as Parameters<typeof createChatReadableStream>[0]);
 }

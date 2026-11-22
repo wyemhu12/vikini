@@ -10,6 +10,7 @@ const mockLoggerWarn = vi.fn();
 const mockToastError = vi.fn();
 const mockPostGenerateImageRequest = vi.fn();
 const mockRequestImageVariation = vi.fn();
+const mockUploadReferenceImages = vi.fn();
 
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
@@ -33,8 +34,8 @@ vi.mock("@/lib/features/image-gen/studioHelpers", async (importOriginal) => {
     ...actual,
     postGenerateImageRequest: (...args: unknown[]) => mockPostGenerateImageRequest(...args),
     requestImageVariation: (...args: unknown[]) => mockRequestImageVariation(...args),
+    uploadReferenceImages: (...args: unknown[]) => mockUploadReferenceImages(...args),
     readStoredApiKey: () => "test-key",
-    convertReferenceImagesToBase64: async () => [],
   };
 });
 
@@ -85,6 +86,7 @@ describe("useImageStudioActions (TC-W2B-14 / NP-5)", () => {
     mockToastError.mockReset();
     mockPostGenerateImageRequest.mockReset();
     mockRequestImageVariation.mockReset();
+    mockUploadReferenceImages.mockReset();
   });
 
   afterEach(() => {
@@ -264,5 +266,133 @@ describe("useImageStudioActions (TC-W2B-14 / NP-5)", () => {
 
     expect(params.setGenerating).not.toHaveBeenCalled();
     expect(params.setGeneratingLabel).not.toHaveBeenCalled();
+  });
+
+  it("TC-REF-10 & WP-1: uploads reference images directly and sends referenceImagePaths (no base64) for single generation", async () => {
+    const f1 = new File(["1"], "ref1.png", { type: "image/png" });
+    const f2 = new File(["2"], "ref2.webp", { type: "image/webp" });
+    mockUploadReferenceImages.mockResolvedValueOnce(["u/conv-1/ref-1.png", "u/conv-1/ref-2.webp"]);
+    mockPostGenerateImageRequest.mockResolvedValueOnce({ success: true });
+
+    const params = buildParams({ referenceImages: [f1, f2], numberOfImages: 1 });
+    const { result } = renderHook(() => useImageStudioActions(params));
+
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+
+    expect(mockUploadReferenceImages).toHaveBeenCalledTimes(1);
+    expect(mockUploadReferenceImages).toHaveBeenCalledWith(
+      [f1, f2],
+      "conv-1",
+      "studioRefUploadFailed"
+    );
+    expect(mockPostGenerateImageRequest).toHaveBeenCalledTimes(1);
+    const reqBody = mockPostGenerateImageRequest.mock.calls[0][0] as {
+      options: Record<string, unknown>;
+    };
+    expect(reqBody.options.referenceImagePaths).toEqual([
+      "u/conv-1/ref-1.png",
+      "u/conv-1/ref-2.webp",
+    ]);
+    expect(reqBody.options.referenceImages).toBeUndefined();
+    expect(params.setGenerating).toHaveBeenLastCalledWith(false);
+  });
+
+  it("TC-REF-10 & NP-4: shows toast.error once, skips generate, and unlocks generatingRef on upload failure", async () => {
+    const { ReferenceImageUploadError } = await import("@/lib/features/image-gen/studioHelpers");
+    const f1 = new File(["1"], "big.png", { type: "image/png" });
+    mockUploadReferenceImages
+      .mockRejectedValueOnce(new ReferenceImageUploadError("HTTP 413"))
+      .mockResolvedValueOnce(["u/conv-1/ref-retry.png"]);
+    mockPostGenerateImageRequest.mockResolvedValueOnce({ success: true });
+
+    const params = buildParams({ referenceImages: [f1], numberOfImages: 1 });
+    const { result } = renderHook(() => useImageStudioActions(params));
+
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+    expect(mockToastError).toHaveBeenCalledWith("studioRefUploadFailed");
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      "Gen Error:",
+      expect.any(ReferenceImageUploadError)
+    );
+    expect(mockPostGenerateImageRequest).not.toHaveBeenCalled();
+    expect(params.setGenerating).toHaveBeenLastCalledWith(false);
+
+    // Retry succeeds -> proves zero deadlock
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+    expect(mockPostGenerateImageRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("TC-REF-11, WP-1 & NP-4: isolates paths per batch branch, shows single toast on total batch upload failure, and preserves partial success", async () => {
+    const { ReferenceImageUploadError } = await import("@/lib/features/image-gen/studioHelpers");
+    const f1 = new File(["1"], "ref1.png", { type: "image/png" });
+    const f2 = new File(["2"], "ref2.png", { type: "image/png" });
+
+    // (a) Batch of 3 succeeds: each branch gets its own distinct referenceImagePaths
+    mockUploadReferenceImages
+      .mockResolvedValueOnce(["u/conv-1/ref-a1.png", "u/conv-1/ref-a2.png"])
+      .mockResolvedValueOnce(["u/conv-1/ref-b1.png", "u/conv-1/ref-b2.png"])
+      .mockResolvedValueOnce(["u/conv-1/ref-c1.png", "u/conv-1/ref-c2.png"]);
+    mockPostGenerateImageRequest.mockResolvedValue({ success: true });
+
+    const paramsBatch = buildParams({ referenceImages: [f1, f2], numberOfImages: 3 });
+    const { result: resBatch } = renderHook(() => useImageStudioActions(paramsBatch));
+
+    await act(async () => {
+      await resBatch.current.handleGenerate();
+    });
+
+    expect(mockUploadReferenceImages).toHaveBeenCalledTimes(3);
+    expect(mockPostGenerateImageRequest).toHaveBeenCalledTimes(3);
+    const sentSets = mockPostGenerateImageRequest.mock.calls.map(
+      (c) => (c[0] as { options: { referenceImagePaths: string[] } }).options.referenceImagePaths
+    );
+    expect(sentSets).toEqual([
+      ["u/conv-1/ref-a1.png", "u/conv-1/ref-a2.png"],
+      ["u/conv-1/ref-b1.png", "u/conv-1/ref-b2.png"],
+      ["u/conv-1/ref-c1.png", "u/conv-1/ref-c2.png"],
+    ]);
+
+    // (b) All 3 branches fail upload -> toast.error called EXACTLY ONCE (no 3x spam)
+    mockToastError.mockClear();
+    mockPostGenerateImageRequest.mockClear();
+    mockUploadReferenceImages.mockReset();
+    mockUploadReferenceImages.mockRejectedValue(new ReferenceImageUploadError("HTTP 413"));
+
+    await act(async () => {
+      await resBatch.current.handleGenerate();
+    });
+
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+    expect(mockToastError).toHaveBeenCalledWith("studioRefUploadFailed");
+    expect(mockPostGenerateImageRequest).not.toHaveBeenCalled();
+
+    // (c) Partial batch success: 1 branch succeeds + 1 branch upload fails -> no global error/toast
+    mockToastError.mockClear();
+    mockPostGenerateImageRequest.mockClear();
+    mockUploadReferenceImages.mockReset();
+    mockUploadReferenceImages
+      .mockResolvedValueOnce(["u/conv-1/ref-ok.png"])
+      .mockRejectedValueOnce(new ReferenceImageUploadError("Network blip"));
+    mockPostGenerateImageRequest.mockResolvedValueOnce({ success: true });
+
+    const paramsPartial = buildParams({ referenceImages: [f1], numberOfImages: 2 });
+    const { result: resPartial } = renderHook(() => useImageStudioActions(paramsPartial));
+
+    await act(async () => {
+      await resPartial.current.handleGenerate();
+    });
+
+    expect(mockPostGenerateImageRequest).toHaveBeenCalledTimes(1);
+    expect(mockToastError).not.toHaveBeenCalled();
+    expect(paramsPartial.setShowError).not.toHaveBeenCalled();
+    expect(paramsPartial.loadConversation).toHaveBeenCalledWith("conv-1");
   });
 });

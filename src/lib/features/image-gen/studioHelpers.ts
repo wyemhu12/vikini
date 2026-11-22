@@ -1,6 +1,7 @@
 import type { GeneratedImage } from "@/app/features/image-gen/components/Canvas";
 import type { BatchQuotaInfo } from "@/app/features/image-gen/components/ControlPanel";
 import type { FrontendMessage } from "@/lib/features/chat/conversationListHelpers";
+import { STUDIO_REF_IMAGE_MAX_BYTES } from "@/lib/features/files/uploadPresentation";
 
 export interface StudioErrorDisplay {
   message: string;
@@ -42,6 +43,7 @@ export function classifyStudioError(
       suggestion: t("studioErrorTimeoutSuggestion"),
     };
   }
+  if (lower.includes("40mb")) return { message: t("studioRefFileTooLarge") };
   return { message: errorMsg || t("studioGenerateFailed") };
 }
 
@@ -114,7 +116,7 @@ export function buildGenerateImageBody(params: {
   resolution: string;
   style: string;
   isEnhancerOn: boolean;
-  referenceImagesBase64: string[];
+  referenceImagePaths?: string[];
   batchSize?: number;
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {
@@ -126,23 +128,16 @@ export function buildGenerateImageBody(params: {
       resolution: params.model.includes("gemini-3") ? params.resolution : undefined,
       style: params.style === "none" ? undefined : params.style,
       enhancer: params.isEnhancerOn,
-      referenceImages:
-        params.referenceImagesBase64.length > 0 ? params.referenceImagesBase64 : undefined,
+      referenceImagePaths:
+        params.referenceImagePaths && params.referenceImagePaths.length > 0
+          ? params.referenceImagePaths
+          : undefined,
     },
   };
   if (params.batchSize && params.batchSize > 1) {
     body.batchSize = params.batchSize;
   }
   return body;
-}
-
-export function fileToBase64(file: Blob): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
 }
 
 export function readStoredApiKey(storageKey: string): string {
@@ -225,20 +220,79 @@ export async function postGenerateImageRequest(
   return parseImageApiResponse(response, fallbackError);
 }
 
-export async function convertReferenceImagesToBase64(
-  files: readonly Blob[],
-  onError?: (error: unknown) => void
+export class ReferenceImageUploadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReferenceImageUploadError";
+  }
+}
+
+interface SignedReferenceUploadItem {
+  signedUrl: string;
+  storagePath: string;
+}
+
+async function requestSignedReferenceUploads(
+  files: readonly File[],
+  conversationId: string,
+  fallbackError: string
+): Promise<SignedReferenceUploadItem[]> {
+  const signRes = await fetch("/api/generate-image/reference-upload-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      conversationId,
+      files: files.map((f) => ({
+        filename: f.name || "reference-image",
+        mimeType: f.type.toLowerCase(),
+        sizeBytes: f.size,
+      })),
+    }),
+  });
+  const parsed = await parseImageApiResponse(signRes, fallbackError);
+  const rawUploads = (parsed.data as { uploads?: unknown } | undefined)?.uploads;
+  if (!Array.isArray(rawUploads) || rawUploads.length !== files.length) {
+    throw new ReferenceImageUploadError(fallbackError);
+  }
+  return rawUploads as SignedReferenceUploadItem[];
+}
+
+/** Uploads 1..4 reference images directly to Supabase Storage (bypasses Vercel 4.5MB limit). */
+export async function uploadReferenceImages(
+  files: readonly File[],
+  conversationId: string,
+  fallbackError = "Failed to upload reference image"
 ): Promise<string[]> {
   if (files.length === 0) return [];
-  const encoded: string[] = [];
   try {
-    for (const refFile of files) {
-      encoded.push(await fileToBase64(refFile));
+    const uploads = await requestSignedReferenceUploads(files, conversationId, fallbackError);
+    const storagePaths: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const item = uploads[i];
+      if (!item?.signedUrl || !item?.storagePath) {
+        throw new ReferenceImageUploadError(fallbackError);
+      }
+      const putRes = await fetch(item.signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type.toLowerCase() || "application/octet-stream",
+          "x-upsert": "false",
+        },
+        body: file,
+      });
+      if (!putRes.ok) {
+        throw new ReferenceImageUploadError(`${fallbackError} (HTTP ${putRes.status})`);
+      }
+      storagePaths.push(item.storagePath);
     }
-  } catch (e: unknown) {
-    onError?.(e);
+    return storagePaths;
+  } catch (err: unknown) {
+    if (err instanceof ReferenceImageUploadError) throw err;
+    throw new ReferenceImageUploadError(
+      err instanceof Error && err.message ? err.message : fallbackError
+    );
   }
-  return encoded;
 }
 
 export function resolveBatchFailureReason(
@@ -255,6 +309,21 @@ export function resolveBatchFailureReason(
   return new Error(fallbackMessage);
 }
 
+const VARIATION_MIME_EXT = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+} as const;
+
+function normalizeVariationMime(raw: string): keyof typeof VARIATION_MIME_EXT {
+  const base = raw.split(";")[0]?.trim().toLowerCase() || "";
+  if (base === "image/jpg" || base === "image/pjpeg") return "image/jpeg";
+  if (base === "image/x-png") return "image/png";
+  if (Object.hasOwn(VARIATION_MIME_EXT, base)) return base as keyof typeof VARIATION_MIME_EXT;
+  return "image/png";
+}
+
 export async function requestImageVariation(params: {
   imageUrl: string;
   originalPrompt: string;
@@ -263,10 +332,15 @@ export async function requestImageVariation(params: {
   aspectRatio: string;
 }): Promise<{ success?: boolean; [key: string]: unknown }> {
   const response = await fetch(params.imageUrl);
-  if (!response.ok) {
-    throw new Error("Failed to fetch source image");
+  if (!response.ok) throw new Error("Failed to fetch source image");
+  const blob = await response.blob();
+  if (blob.size <= 0) throw new Error("Failed to fetch source image");
+  if (blob.size > STUDIO_REF_IMAGE_MAX_BYTES) {
+    throw new ReferenceImageUploadError("Reference image exceeds 40MB limit");
   }
-  const base64 = await fileToBase64(await response.blob());
+  const mime = normalizeVariationMime(blob.type || response.headers.get("content-type") || "");
+  const file = new File([blob], `variation.${VARIATION_MIME_EXT[mime]}`, { type: mime });
+  const refPaths = await uploadReferenceImages([file], params.conversationId, "Variation failed");
   const key = readStoredApiKey("vikini-gemini-key");
   const variationModel = params.model.includes("gemini-3")
     ? params.model
@@ -278,7 +352,7 @@ export async function requestImageVariation(params: {
       options: {
         model: variationModel,
         aspectRatio: params.aspectRatio,
-        referenceImage: base64,
+        referenceImagePaths: refPaths,
       },
     },
     key,

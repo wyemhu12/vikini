@@ -570,3 +570,41 @@ export function isOpenRouterReasoningModel(modelId: unknown): boolean {
     .toLowerCase();
   return id.includes("x-ai/grok") || id.includes("o1") || id.includes("o3") || isGLMModel(id);
 }
+
+export type PdfCapability = "gemini" | "anthropic-direct" | "openrouter-claude" | "text-only";
+
+/**
+ * Determine native PDF capability for a model ID (SSOT).
+ * Inspects the raw lowercased string BEFORE normalizeModelForApi() so unknown or
+ * OpenRouter/legacy Claude IDs never fall back to DEFAULT_MODEL ("gemini-3.5-flash-lite").
+ */
+export function getModelPdfCapability(
+  modelId: unknown,
+  options?: { hasAnthropicApiKey?: boolean }
+): PdfCapability {
+  const raw = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return "text-only";
+
+  // 1. OpenRouter-prefixed Claude IDs always route via OpenRouter (15 MB cap)
+  if (raw.startsWith("anthropic/claude")) {
+    return "openrouter-claude";
+  }
+
+  // 2. Direct/canonical/legacy Claude IDs (e.g. claude-haiku-5-5, claude-sonnet-5-5, claude-3-7-sonnet)
+  if (raw.startsWith("claude-")) {
+    const hasAnthropicKey =
+      options?.hasAnthropicApiKey ??
+      (typeof process !== "undefined" ? Boolean(process.env?.ANTHROPIC_API_KEY) : false);
+    return hasAnthropicKey ? "anthropic-direct" : "openrouter-claude";
+  }
+
+  // 3. Gemini chat models (excluding image-generation model)
+  if (raw.startsWith("gemini-") && raw !== "gemini-3-pro-image") {
+    return "gemini";
+  }
+
+  // 4. DeepSeek, Grok, GLM, Groq GPT-OSS, Strata Local, and unknown IDs -> text-only
+  return "text-only";
+}

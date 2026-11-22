@@ -324,6 +324,13 @@
 
 ## Database and Queries
 
+### 2026-11-22: PostgreSQL `57014` statement timeout on `saveMessage` from persisting base64 `referenceImage(s)` in JSONB `meta`
+
+- **Symptom**: `POST /api/generate-image` returned HTTP `500` after ~31s when generating or upscaling images with reference image(s) in Image Studio; Vercel logs showed Gemini generation and Supabase Storage upload succeeded, followed by `[Supabase Error] saveMessage: { code: '57014', message: 'canceling statement due to statement timeout' }` (10.64s) and orphan image cleanup.
+- **Root Cause**: `src/app/api/generate-image/route.ts` constructed `savedOptions = { ...options, model: effectiveModel }` without stripping multi-MB base64 data URIs (`referenceImage` and `referenceImages`), then embedded `savedOptions` **twice** in `messageMeta` (`originalOptions` and legacy `metadata.originalOptions`). Inserting tens of megabytes of base64 inside a single PostgreSQL JSONB row exceeded Supabase's `statement_timeout`.
+- **Fix**: Destructured `safeOptions: NonNullable<typeof options> = options ?? {}` after `provider.generate(...)` to strip `referenceImage` and `referenceImages` from `savedOptions`, storing only lightweight metadata (`referenceImageCount` when `> 0`) alongside non-binary options, and added co-located regression tests (`TC-GI-META-01..04`) with Wiring and Negative Probes in `src/app/api/generate-image/route.test.ts`.
+- **Prevention Rule**: **NEVER spread raw request `options` containing base64/binary payloads directly into PostgreSQL `jsonb` columns (e.g., `messages.meta`).** Always strip binary/base64 fields before DB persistence and store only lightweight metadata (counts, storage paths, or URLs).
+
 ### 2026-10-14: PostgREST `PGRST201` Ambiguous Relationship Error & Dialog `-inset-px` Scrollport Overflow
 
 - **Symptom**:

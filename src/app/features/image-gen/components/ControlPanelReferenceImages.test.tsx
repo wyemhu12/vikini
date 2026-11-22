@@ -26,6 +26,7 @@ vi.mock("../../chat/hooks/useLanguage", () => ({
         studioRefOnlyGemini: "Gemini only",
         describeInvalidImage: "Invalid image file",
         describeFileTooLarge: "Image too large",
+        studioRefFileTooLarge: "Reference image size must be under 40MB",
         studioRefMaxReached: "Maximum {max} reference images",
       };
       return dict[key] ?? key;
@@ -83,22 +84,32 @@ describe("ControlPanelReferenceImages (TC-SU-09)", () => {
       /^data:image\/png;base64,/
     );
 
-    // Dropping invalid .txt, oversized image, and 3 valid images (2 slots left -> 1 over limit)
+    // Input accept attribute must align with server 4-MIME whitelist
+    const fileInput = screen.getByLabelText("Upload reference") as HTMLInputElement;
+    expect(fileInput.accept).toBe("image/png,image/jpeg,image/webp,image/gif");
+
+    // Dropping invalid .txt / .svg / .heic, oversized 41MB image, 12MB accepted image, and 2 more images (2 slots left -> 1 over limit)
     const badTxt = new File(["txt"], "doc.txt", { type: "text/plain" });
+    const badSvg = new File(["<svg/>"], "vec.svg", { type: "image/svg+xml" });
+    const badHeic = new File(["heic"], "photo.heic", { type: "image/heic" });
     const hugeImg = new File(["big"], "huge.png", { type: "image/png" });
-    Object.defineProperty(hugeImg, "size", { value: 12 * 1024 * 1024 });
-    const f4 = new File(["4"], "four.png", { type: "image/png" });
+    Object.defineProperty(hugeImg, "size", { value: 41 * 1024 * 1024 });
+    const twelveMbImg = new File(["4"], "four.png", { type: "image/png" });
+    Object.defineProperty(twelveMbImg, "size", { value: 12 * 1024 * 1024 });
     const f5 = new File(["5"], "five.png", { type: "image/png" });
     const f6 = new File(["6"], "six.png", { type: "image/png" });
 
     const wrapper = screen.getByText("Reference images").closest("div")
       ?.parentElement as HTMLElement;
     fireEvent.drop(wrapper, {
-      dataTransfer: { files: [badTxt, hugeImg, f4, f5, f6], types: ["Files"] },
+      dataTransfer: {
+        files: [badTxt, badSvg, badHeic, hugeImg, twelveMbImg, f5, f6],
+        types: ["Files"],
+      },
     });
 
     expect(toast.error).toHaveBeenCalledWith("Invalid image file");
-    expect(toast.error).toHaveBeenCalledWith("Image too large");
+    expect(toast.error).toHaveBeenCalledWith("Reference image size must be under 40MB");
     expect(toast.info).toHaveBeenCalledWith("Maximum 4 reference images");
 
     await waitFor(() => {

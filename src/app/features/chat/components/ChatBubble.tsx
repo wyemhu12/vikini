@@ -103,11 +103,16 @@ export const ChatBubble = React.memo(
     const safeMessage = useMemo((): ChatMessage => {
       const b =
         message && typeof message === "object" ? message : { role: "assistant", content: "" };
+      const urlContext =
+        [b.urlContext, props.urlContext, b.meta?.urlContext].find(
+          (list): list is NonNullable<ChatMessage["urlContext"]> =>
+            Array.isArray(list) && list.length > 0
+        ) ?? [];
       return {
         role: b.role || props.role || "assistant",
         content: b.content || props.content || "",
         sources: b.sources || props.sources || [],
-        urlContext: b.urlContext || props.urlContext || [],
+        urlContext,
         id: b.id,
         meta: b.meta || {},
       };
@@ -400,19 +405,17 @@ export const ChatBubble = React.memo(
                   </div>
                 ))}
 
-              {isBot &&
-                ((safeMessage.sources?.length ?? 0) > 0 ||
-                  (Array.isArray(safeMessage.meta?.ragSources) &&
-                    safeMessage.meta.ragSources.length > 0)) && (
-                  <SourceLinks
-                    sources={safeMessage.sources ?? []}
-                    ragSources={
-                      Array.isArray(safeMessage.meta?.ragSources)
-                        ? safeMessage.meta.ragSources
-                        : undefined
-                    }
-                  />
-                )}
+              {isBot && (
+                <SourceLinks
+                  sources={safeMessage.sources ?? []}
+                  ragSources={
+                    Array.isArray(safeMessage.meta?.ragSources)
+                      ? safeMessage.meta.ragSources
+                      : undefined
+                  }
+                  urlContext={safeMessage.urlContext ?? []}
+                />
+              )}
 
               {isBot && !isLoading && safeMessage.meta?.totalTokenCount && (
                 <div className="mt-2 flex justify-end">
@@ -471,6 +474,7 @@ export const ChatBubble = React.memo(
   },
   (p, n) =>
     p.message === n.message &&
+    p.urlContext === n.urlContext &&
     p.message?.meta?.thinkingStats === n.message?.meta?.thinkingStats &&
     p.message?.meta?.localProgress === n.message?.meta?.localProgress &&
     p.message?.meta?.streamActivity === n.message?.meta?.streamActivity &&

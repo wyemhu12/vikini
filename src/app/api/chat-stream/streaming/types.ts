@@ -33,6 +33,12 @@ export interface MessagePart {
     data: string;
     mimeType: string;
   };
+  fileData?: {
+    fileUri: string;
+    mimeType: string;
+  };
+  /** Optional display filename used ONLY by Claude/OpenRouter PDF mappers (stripped before Gemini API) */
+  filename?: string;
   thoughtSignature?: string;
 }
 
@@ -203,4 +209,8 @@ export interface ChatStreamParams {
     chunkId: string;
     similarity: number;
   }>;
+  /** Pre-resolved URL context entries (e.g. Google Workspace public links) emitted at stream start and persisted */
+  initialUrlContext?: Array<{ retrievedUrl: string; status: string }>;
+  /** Idempotent cleanup callback invoked in stream finally/cancel (e.g. temporary Gemini Files API deletion) */
+  onStreamFinally?: () => Promise<void>;
 }

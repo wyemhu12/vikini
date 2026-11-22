@@ -74,12 +74,43 @@ function processGroundingMetadata(
   return [];
 }
 
+export interface UrlContextEntry {
+  retrievedUrl: string;
+  status: string;
+}
+
+/**
+ * Merges pre-resolved URL context entries (e.g. Google Workspace) with native provider URL metadata.
+ * Deduplicates by trimmed `retrievedUrl`, preserving initial Google Docs statuses on collision.
+ */
+function mergeUrlContextEntries(
+  initial?: readonly UrlContextEntry[],
+  incoming?: readonly UrlContextEntry[]
+): UrlContextEntry[] {
+  const seen = new Set<string>();
+  const merged: UrlContextEntry[] = [];
+
+  for (const list of [initial, incoming]) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      const url = typeof item?.retrievedUrl === "string" ? item.retrievedUrl.trim() : "";
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      merged.push({
+        retrievedUrl: url,
+        status: typeof item.status === "string" ? item.status : "",
+      });
+    }
+  }
+
+  return merged;
+}
+
 function processUrlContextMetadata(
   controller: ReadableStreamDefaultController<Uint8Array>,
-  urlContextMetadata: unknown
-): Array<{ retrievedUrl: string; status: string }> {
-  if (!urlContextMetadata) return [];
-
+  urlContextMetadata: unknown,
+  initialUrlContext?: readonly UrlContextEntry[]
+): UrlContextEntry[] {
   const urlMeta =
     (
       urlContextMetadata as {
@@ -95,7 +126,7 @@ function processUrlContextMetadata(
           urlRetrievalStatus?: string;
           url_retrieval_status?: string;
         }>;
-      }
+      } | null
     )?.urlMetadata ||
     (
       urlContextMetadata as {
@@ -105,21 +136,29 @@ function processUrlContextMetadata(
           urlRetrievalStatus?: string;
           url_retrieval_status?: string;
         }>;
-      }
+      } | null
     )?.url_metadata ||
     [];
 
-  const urls = urlMeta.map((u) => ({
-    retrievedUrl: u.retrievedUrl || u.retrieved_url || "",
-    status: u.urlRetrievalStatus || u.url_retrieval_status || "",
-  }));
+  const nativeUrls: UrlContextEntry[] = urlMeta
+    .map((u) => ({
+      retrievedUrl: (u.retrievedUrl || u.retrieved_url || "").trim(),
+      status: u.urlRetrievalStatus || u.url_retrieval_status || "",
+    }))
+    .filter((u) => u.retrievedUrl.length > 0);
 
-  sendEvent(controller, "meta", {
-    type: "urlContext",
-    urls,
-  });
+  const merged = mergeUrlContextEntries(initialUrlContext, nativeUrls);
 
-  return urls;
+  // Only emit a second SSE urlContext frame when native provider URLs actually exist
+  // (avoids overwriting Google Workspace chips in useChatStreamReader with an empty array).
+  if (nativeUrls.length > 0) {
+    sendEvent(controller, "meta", {
+      type: "urlContext",
+      urls: merged,
+    });
+  }
+
+  return merged;
 }
 
 async function processPostStream(
@@ -308,6 +347,7 @@ async function processPostStream(
 export {
   handleSafetyBlocking,
   processGroundingMetadata,
+  mergeUrlContextEntries,
   processUrlContextMetadata,
   processPostStream,
 };

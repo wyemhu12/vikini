@@ -5,6 +5,11 @@ import { auth } from "@/lib/features/auth/auth";
 import { getSupabaseAdmin } from "@/lib/core/supabase.server";
 import { ImageGenFactory } from "@/lib/features/image-gen/core/ImageGenFactory";
 import { ImageGenOptions } from "@/lib/features/image-gen/core/types";
+import {
+  cleanupTempReferenceImages,
+  downloadReferenceImagesFromStorage,
+  validateReferenceImagePaths,
+} from "@/lib/features/image-gen/referenceImageStorage";
 import { saveMessage } from "@/lib/features/chat/messages";
 import { assertConversationOwner } from "@/lib/features/chat/conversations";
 import { logger } from "@/lib/utils/logger";
@@ -46,8 +51,7 @@ const imageGenOptionsSchema = z
     enhancer: z.boolean().optional(),
     enhancerModel: z.string().max(100).optional(),
     model: z.enum(ALLOWED_GENERATE_IMAGE_MODELS).optional(),
-    referenceImage: z.string().optional(), // backward compat
-    referenceImages: z.array(z.string()).max(4).optional(), // QW-D: multiple reference images
+    referenceImagePaths: z.array(z.string().min(1).max(512)).max(4).optional(), // Direct Storage upload (<= 40MB/image)
   })
   .optional();
 
@@ -61,6 +65,9 @@ const imageGenRequestSchema = z.object({
 export const maxDuration = 300; // Set max duration to 300s (Vercel Fluid Compute)
 
 export async function POST(req: NextRequest) {
+  let validatedRefPaths: string[] = [];
+  let refOwnerContext: { userId: string; conversationId: string } | null = null;
+
   try {
     // 1. Auth Check
     const session = await auth();
@@ -99,6 +106,16 @@ export async function POST(req: NextRequest) {
 
     // 4. Verify conversation ownership
     await assertConversationOwner(conversationId, userId);
+
+    // 4.5 Validate temp reference image paths immediately so finally cleans them on any early rejection
+    if (options?.referenceImagePaths?.length) {
+      validatedRefPaths = validateReferenceImagePaths(
+        options.referenceImagePaths,
+        userId,
+        conversationId
+      );
+      refOwnerContext = { userId, conversationId };
+    }
 
     // 5. User profile check & Gatekeeper (M-19, M-23: fail-closed 503 nếu lỗi/null, 403 nếu blocked/not_whitelisted)
     const profile = await getUserProfile(userId);
@@ -214,11 +231,8 @@ Original: "${prompt}"`;
       let providerName = "gemini-native"; // Default (Gemini Image Flash)
       const modelName = options?.model?.toLowerCase();
 
-      // Auto-route to gemini-native when referenceImage(s) are provided
-      if (
-        options?.referenceImage ||
-        (options?.referenceImages && options.referenceImages.length > 0)
-      ) {
+      // Auto-route to gemini-native when referenceImagePaths are provided
+      if (validatedRefPaths.length > 0) {
         providerName = "gemini-native";
       } else if (
         modelName?.includes("gemini-3.1-flash-image") ||
@@ -242,8 +256,17 @@ Original: "${prompt}"`;
 
       const provider = ImageGenFactory.getProvider(providerName);
 
+      // Download & verify temporary reference images from Storage if direct-uploaded
+      const resolvedReferenceImages =
+        validatedRefPaths.length > 0
+          ? await downloadReferenceImagesFromStorage(getSupabaseAdmin(), validatedRefPaths)
+          : undefined;
+
       // Type assertion to ensure model mapping doesn't lose data
-      const results = await provider.generate(prompt, options as ImageGenOptions, apiKey);
+      const providerOptions: ImageGenOptions = resolvedReferenceImages
+        ? { ...(options as ImageGenOptions), resolvedReferenceImages }
+        : (options as ImageGenOptions);
+      const results = await provider.generate(prompt, providerOptions, apiKey);
 
       if (!results || results.length === 0) {
         throw new Error("No images generated");
@@ -328,9 +351,15 @@ Original: "${prompt}"`;
               ? "Flux"
               : "Unknown");
 
+      // Strip temp reference storage paths before persisting to PostgreSQL JSONB
+      const safeOptions: NonNullable<typeof options> = options ?? {};
+      const { referenceImagePaths: _referenceImagePaths, ...persistedOptions } = safeOptions;
+      const referenceImageCount = validatedRefPaths.length;
+
       const savedOptions = {
-        ...options,
+        ...persistedOptions,
         model: effectiveModel,
+        ...(referenceImageCount > 0 ? { referenceImageCount } : {}),
       };
 
       const messageMeta = {
@@ -422,5 +451,14 @@ Original: "${prompt}"`;
     }
 
     return error("Image generation failed", 500);
+  } finally {
+    if (validatedRefPaths.length > 0 && refOwnerContext) {
+      await cleanupTempReferenceImages(
+        getSupabaseAdmin(),
+        refOwnerContext.userId,
+        refOwnerContext.conversationId,
+        validatedRefPaths
+      );
+    }
   }
 }

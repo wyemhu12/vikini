@@ -502,4 +502,118 @@ describe("createDeepSeekStream", () => {
       })
     );
   });
+
+  it("TC-CL-02 (NP): keeps content as string when PDF inlineData is filtered and persists initialUrlContext on completion & abort", async () => {
+    const initialUrlContext = [
+      {
+        retrievedUrl: "https://docs.google.com/document/d/1DeepSeekDoc1234567/edit",
+        status: "GOOGLE_DOC_TEXT",
+      },
+    ];
+
+    mockCreate.mockResolvedValueOnce(
+      createAsyncIterable([
+        { choices: [{ delta: { content: "DeepSeek OK" }, finish_reason: "stop" }] },
+      ])
+    );
+
+    const stream = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4.1-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "Doc text" },
+            { inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQ=" } },
+          ],
+        },
+      ],
+      sysPrompt: "System",
+      thinkingLevel: "low",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 384000 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Doc text",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      upsertAssistantMessage: vi.fn(),
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+      initialUrlContext,
+    });
+
+    const { sendInitialMetaEvents } = await import("./gemini-stream");
+    await readStream(stream);
+    expect(sendInitialMetaEvents).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ initialUrlContext })
+    );
+    const reqPayload = mockCreate.mock.calls[0][0] as {
+      messages: Array<{ role: string; content: unknown }>;
+    };
+    expect(typeof reqPayload.messages[1].content).toBe("string");
+    expect(reqPayload.messages[1].content).toBe("Doc text");
+    expect(processPostStream).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ urlContext: initialUrlContext })
+    );
+
+    // savePartialOnce on abort
+    const upsertMock = vi.fn().mockResolvedValue({});
+    const ac = new AbortController();
+    mockCreate.mockResolvedValueOnce({
+      [Symbol.asyncIterator]() {
+        let i = 0;
+        return {
+          async next() {
+            if (i === 0) {
+              i++;
+              return { value: { choices: [{ delta: { content: "Partial DS" } }] }, done: false };
+            }
+            ac.abort();
+            return { value: undefined, done: true };
+          },
+        };
+      },
+    });
+    const aborted = createDeepSeekStream({
+      ai: mockAi,
+      model: "deepseek/deepseek-v4.1-flash",
+      contents: [{ role: "user", parts: [{ text: "Test" }] }],
+      sysPrompt: "System",
+      thinkingLevel: "low",
+      gemMeta: { gemId: null },
+      modelMeta: { maxOutputTokens: 384000 },
+      createdConversation: null,
+      shouldGenerateTitle: false,
+      enableWebSearch: false,
+      WEB_SEARCH_AVAILABLE: false,
+      cookieWeb: "",
+      userId: "user-1",
+      conversationId: "conv-1",
+      content: "Test",
+      contextMessages: [],
+      appendToContext: vi.fn(),
+      upsertAssistantMessage: upsertMock,
+      setConversationAutoTitle: vi.fn(),
+      generateOptimisticTitle: vi.fn(),
+      generateFinalTitle: vi.fn(),
+      signal: ac.signal,
+      initialUrlContext,
+    });
+    await readStream(aborted);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ urlContext: initialUrlContext }),
+      })
+    );
+  });
 });

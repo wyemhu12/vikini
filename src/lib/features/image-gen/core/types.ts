@@ -3,6 +3,13 @@
  * Defines interfaces for multi-provider image generation system
  */
 
+export interface ResolvedReferenceImage {
+  buffer: Buffer;
+  mimeType: string;
+  sizeBytes: number;
+  filename?: string;
+}
+
 export interface ImageGenOptions {
   aspectRatio?:
     | "1:1"
@@ -44,8 +51,8 @@ export interface ImageGenOptions {
   enhancer?: boolean;
   enhancerModel?: string;
   model?: string;
-  referenceImage?: string;
-  referenceImages?: string[];
+  referenceImagePaths?: string[];
+  resolvedReferenceImages?: ResolvedReferenceImage[];
 }
 
 export interface ImageGenResult {

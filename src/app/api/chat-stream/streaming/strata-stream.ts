@@ -62,6 +62,7 @@ export interface CreateStrataStreamParams {
   clientMessageId?: string;
   signal?: AbortSignal;
   ragSources?: Array<{ filename: string; documentId: string; chunkId: string; similarity: number }>;
+  initialUrlContext?: Array<{ retrievedUrl: string; status: string }>;
   regenerate?: boolean;
 }
 
@@ -240,6 +241,7 @@ export function createStrataStream(params: CreateStrataStreamParams): ReadableSt
     clientMessageId,
     signal,
     ragSources,
+    initialUrlContext,
   } = params;
 
   const ac = new AbortController();
@@ -283,6 +285,9 @@ export function createStrataStream(params: CreateStrataStreamParams): ReadableSt
             model,
             clientMessageId,
             ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
+            ...(initialUrlContext && initialUrlContext.length > 0
+              ? { urlContext: initialUrlContext }
+              : {}),
           },
         });
       } catch (saveErr: unknown) {
@@ -306,6 +311,7 @@ export function createStrataStream(params: CreateStrataStreamParams): ReadableSt
         modelMeta,
         model,
         ragSources,
+        initialUrlContext,
       });
 
       await generateAndSendOptimisticTitle(
@@ -490,6 +496,8 @@ export function createStrataStream(params: CreateStrataStreamParams): ReadableSt
           full,
           reasoning: fullReasoning || undefined,
           ragSources,
+          urlContext:
+            initialUrlContext && initialUrlContext.length > 0 ? initialUrlContext : undefined,
           isActuallyBlocked: false,
           shouldGenerateTitle,
           conversationId,

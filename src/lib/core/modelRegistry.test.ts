@@ -24,6 +24,7 @@ import {
   GLM_MAX_OUTPUT_TOKENS,
   isStrataLocalModel,
   modelSupportsWebSearch,
+  getModelPdfCapability,
   SELECTABLE_MODELS,
   PROVIDER_LABELS,
 } from "./modelRegistry";
@@ -510,6 +511,76 @@ describe("modelRegistry - Gemini Thinking Level & Model Normalization", () => {
         "medium",
         "high",
       ]);
+    });
+  });
+
+  describe("getModelPdfCapability (TC-MR-01)", () => {
+    it("TC-MR-01: classifies all 12 SELECTABLE_MODELS, OpenRouter/legacy Claude, env overrides, and unknown IDs accurately", () => {
+      const originalKey = process.env.ANTHROPIC_API_KEY;
+      try {
+        process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
+
+        // 3 Gemini models -> "gemini"
+        expect(getModelPdfCapability("gemini-3.5-flash-lite")).toBe("gemini");
+        expect(getModelPdfCapability(MODEL_IDS.GEMINI_4_HYDROGEN)).toBe("gemini");
+        expect(getModelPdfCapability(MODEL_IDS.GEMINI_4_NEON)).toBe("gemini");
+        expect(getModelPdfCapability("gemini-3-pro-image")).toBe("text-only");
+
+        // OpenRouter-prefixed Claude IDs -> ALWAYS "openrouter-claude" even when ANTHROPIC_API_KEY is set
+        expect(getModelPdfCapability("anthropic/claude-sonnet-5.5")).toBe("openrouter-claude");
+        expect(getModelPdfCapability("anthropic/claude-haiku-5.5")).toBe("openrouter-claude");
+        expect(
+          getModelPdfCapability("anthropic/claude-sonnet-5.5", { hasAnthropicApiKey: true })
+        ).toBe("openrouter-claude");
+
+        // Canonical & legacy Claude IDs with key vs explicit override { hasAnthropicApiKey: false }
+        expect(getModelPdfCapability(MODEL_IDS.CLAUDE_HAIKU_55)).toBe("anthropic-direct");
+        expect(getModelPdfCapability(MODEL_IDS.CLAUDE_SONNET_55)).toBe("anthropic-direct");
+        expect(getModelPdfCapability("claude-3-7-sonnet")).toBe("anthropic-direct");
+        expect(
+          getModelPdfCapability(MODEL_IDS.CLAUDE_SONNET_55, { hasAnthropicApiKey: false })
+        ).toBe("openrouter-claude");
+        expect(getModelPdfCapability("claude-3-7-sonnet", { hasAnthropicApiKey: false })).toBe(
+          "openrouter-claude"
+        );
+
+        // Missing env key -> "openrouter-claude"
+        delete process.env.ANTHROPIC_API_KEY;
+        expect(getModelPdfCapability(MODEL_IDS.CLAUDE_HAIKU_55)).toBe("openrouter-claude");
+        expect(getModelPdfCapability(MODEL_IDS.CLAUDE_SONNET_55)).toBe("openrouter-claude");
+        expect(
+          getModelPdfCapability(MODEL_IDS.CLAUDE_SONNET_55, { hasAnthropicApiKey: true })
+        ).toBe("anthropic-direct");
+
+        // Remaining 7 non-PDF selectable models -> "text-only"
+        expect(getModelPdfCapability(MODEL_IDS.DEEPSEEK_V41_FLASH)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.DEEPSEEK_V4_PRO)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.DEEPSEEK_V32)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.GROK_47)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.GLM_52)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.GROQ_GPT_OSS_120B)).toBe("text-only");
+        expect(getModelPdfCapability(MODEL_IDS.STRATA_LOCAL)).toBe("text-only");
+
+        // Unknown / empty / null IDs MUST NOT fall back to DEFAULT_MODEL ("gemini")
+        expect(getModelPdfCapability("unknown-model")).toBe("text-only");
+        expect(getModelPdfCapability("")).toBe("text-only");
+        expect(getModelPdfCapability(null)).toBe("text-only");
+        expect(getModelPdfCapability(undefined)).toBe("text-only");
+
+        // Exhaustive check over all 12 SELECTABLE_MODELS
+        const capabilities = SELECTABLE_MODELS.map((m) =>
+          getModelPdfCapability(m.id, { hasAnthropicApiKey: true })
+        );
+        expect(capabilities.filter((c) => c === "gemini")).toHaveLength(3);
+        expect(capabilities.filter((c) => c === "anthropic-direct")).toHaveLength(2);
+        expect(capabilities.filter((c) => c === "text-only")).toHaveLength(7);
+      } finally {
+        if (originalKey === undefined) {
+          delete process.env.ANTHROPIC_API_KEY;
+        } else {
+          process.env.ANTHROPIC_API_KEY = originalKey;
+        }
+      }
     });
   });
 });

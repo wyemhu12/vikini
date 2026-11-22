@@ -42,6 +42,27 @@ import { sendThinkingChunk, accumulateReasoning } from "./reasoningStreamHelper.
 
 // --- EXTRACTED FUNCTIONS ---
 
+function sanitizeGeminiContents(contents: unknown[]): unknown[] {
+  return contents.map((item) => {
+    if (typeof item !== "object" || item === null) return item;
+    const msg = item as { role?: unknown; parts?: unknown };
+    if (!Array.isArray(msg.parts)) return item;
+
+    let changed = false;
+    const cleanedParts = msg.parts.map((part) => {
+      if (typeof part === "object" && part !== null && "filename" in part) {
+        changed = true;
+        const copy = { ...(part as Record<string, unknown>) };
+        delete copy.filename;
+        return copy;
+      }
+      return part;
+    });
+
+    return changed ? { ...msg, parts: cleanedParts } : item;
+  });
+}
+
 function sendInitialMetaEvents(
   controller: ReadableStreamDefaultController<Uint8Array>,
   params: {
@@ -58,6 +79,7 @@ function sendInitialMetaEvents(
       chunkId: string;
       similarity: number;
     }>;
+    initialUrlContext?: Array<{ retrievedUrl: string; status: string }>;
   }
 ): void {
   const {
@@ -69,6 +91,7 @@ function sendInitialMetaEvents(
     modelMeta,
     model,
     ragSources,
+    initialUrlContext,
   } = params;
 
   if (createdConversation) {
@@ -82,6 +105,13 @@ function sendInitialMetaEvents(
     sendEvent(controller, "meta", {
       type: "ragSources",
       sources: ragSources,
+    });
+  }
+
+  if (initialUrlContext && initialUrlContext.length > 0) {
+    sendEvent(controller, "meta", {
+      type: "urlContext",
+      urls: initialUrlContext,
     });
   }
 
@@ -153,7 +183,9 @@ async function executeStream(
     }>;
   }
 ): Promise<StreamResult> {
-  const { ai, model, contents, sysPrompt, safetySettings, thinkingLevel } = params;
+  const { ai, model, contents: rawContents, sysPrompt, safetySettings, thinkingLevel } = params;
+  // Strip helper-only fields (e.g. `filename`) before initial and continuation Gemini API calls
+  const contents = sanitizeGeminiContents(rawContents);
 
   if (params.acc) {
     params.acc.full = "";
@@ -771,10 +803,27 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     thinkingLevel,
     clientMessageId,
     signal,
+    initialUrlContext,
+    onStreamFinally,
   } = params;
 
   const ac = new AbortController();
   let isCancelled = false;
+  let cleanupPromise: Promise<void> | null = null;
+  const runOnStreamFinallyOnce = (): Promise<void> => {
+    if (!onStreamFinally) return Promise.resolve();
+    if (!cleanupPromise) {
+      cleanupPromise = Promise.resolve()
+        .then(() => onStreamFinally())
+        .catch((cleanupErr: unknown) => {
+          streamLogger.warn(
+            "Gemini onStreamFinally cleanup failed:",
+            cleanupErr instanceof Error ? cleanupErr.message : "Unknown"
+          );
+        });
+    }
+    return cleanupPromise;
+  };
   if (signal) {
     if (signal.aborted) {
       isCancelled = true;
@@ -814,6 +863,9 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
             model,
             clientMessageId,
             ...(trimmedReasoning ? { reasoning: trimmedReasoning } : {}),
+            ...(initialUrlContext && initialUrlContext.length > 0
+              ? { urlContext: initialUrlContext }
+              : {}),
           },
         });
       } catch (saveErr) {
@@ -826,6 +878,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
     cancel() {
       isCancelled = true;
       ac.abort();
+      void runOnStreamFinallyOnce().catch(() => {});
     },
     async start(controller) {
       try {
@@ -839,6 +892,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
           modelMeta,
           model,
           ragSources: params.ragSources,
+          initialUrlContext,
         });
 
         // Generate optimistic title if needed
@@ -901,7 +955,16 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
 
         // Process metadata - collect sources/urlContext for DB persistence
         const sources = processGroundingMetadata(controller, streamResult.groundingMetadata);
-        const urlContext = processUrlContextMetadata(controller, streamResult.urlContextMetadata);
+        const processedUrlContext = processUrlContextMetadata(
+          controller,
+          streamResult.urlContextMetadata,
+          initialUrlContext
+        );
+        const urlContext = Array.isArray(processedUrlContext)
+          ? processedUrlContext
+          : Array.isArray(initialUrlContext)
+            ? initialUrlContext
+            : [];
 
         // Post-stream processing: pass finalFull and reasoning
         await processPostStream(controller, {
@@ -942,6 +1005,7 @@ export function createChatReadableStream(params: ChatStreamParams): ReadableStre
         streamLogger.error("createChatReadableStream error:", err);
         sendEvent(controller, "done", { ok: false });
       } finally {
+        await runOnStreamFinallyOnce();
         try {
           controller.close();
         } catch {

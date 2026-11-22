@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { STUDIO_REF_IMAGE_MAX_BYTES } from "@/lib/features/files/uploadPresentation";
 import {
+  ReferenceImageUploadError,
   classifyStudioError,
-  convertReferenceImagesToBase64,
   fetchStudioBatchQuota,
-  fileToBase64,
   mapMessagesToGeneratedImages,
   buildFinalPrompt,
   estimateGenerationSeconds,
@@ -15,6 +15,7 @@ import {
   readStoredApiKey,
   parseImageApiResponse,
   postGenerateImageRequest,
+  uploadReferenceImages,
 } from "./studioHelpers";
 import type { FrontendMessage } from "@/lib/features/chat/conversationListHelpers";
 
@@ -106,12 +107,14 @@ describe("studioHelpers (CT-6C-02)", () => {
       resolution: "2K",
       style: "none",
       isEnhancerOn: true,
-      referenceImagesBase64: [],
       batchSize: 4,
     });
     expect(batchBody.batchSize).toBe(4);
-    expect((batchBody.options as Record<string, unknown>).resolution).toBe("2K");
-    expect((batchBody.options as Record<string, unknown>).style).toBeUndefined();
+    const batchOpts = batchBody.options as Record<string, unknown>;
+    expect(batchOpts.resolution).toBe("2K");
+    expect(batchOpts.style).toBeUndefined();
+    expect("referenceImage" in batchOpts).toBe(false);
+    expect("referenceImages" in batchOpts).toBe(false);
   });
 
   afterEach(() => {
@@ -147,47 +150,6 @@ describe("studioHelpers (CT-6C-02)", () => {
     );
   });
 
-  it("TC-HF-05 & NP-3: convertReferenceImagesToBase64 converts blobs in order and handles FileReader failures gracefully", async () => {
-    const onError = vi.fn();
-    expect(await convertReferenceImagesToBase64([], onError)).toEqual([]);
-    expect(onError).not.toHaveBeenCalled();
-
-    const blobs = [
-      new Blob(["abc"], { type: "text/plain" }),
-      new Blob(["def"], { type: "text/plain" }),
-    ];
-    const encoded = await convertReferenceImagesToBase64(blobs, onError);
-    expect(encoded).toHaveLength(2);
-    expect(encoded[0]).toMatch(/^data:text\/plain;base64,/);
-    expect(encoded[1]).toMatch(/^data:text\/plain;base64,/);
-    expect(encoded[0]).not.toBe(encoded[1]);
-    expect(onError).not.toHaveBeenCalled();
-
-    // NP-3: Second FileReader fails -> invokes onError once and returns partial converted array without throwing
-    let callIdx = 0;
-    class StubFileReader {
-      result: string | null = null;
-      error: Error | null = null;
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        callIdx += 1;
-        if (callIdx === 1) {
-          this.result = "data:image/png;base64,AAA";
-          this.onload?.();
-        } else {
-          this.error = new Error("Read failed");
-          this.onerror?.();
-        }
-      }
-    }
-    vi.stubGlobal("FileReader", StubFileReader);
-    const partial = await convertReferenceImagesToBase64(blobs, onError);
-    expect(partial).toEqual(["data:image/png;base64,AAA"]);
-    expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "Read failed" }));
-  });
-
   it("TC-HF-06 & NP-3: resolveBatchFailureReason returns null on partial/full success and non-null Error on total failure", () => {
     const partialResults: PromiseSettledResult<unknown>[] = [
       { status: "fulfilled", value: { success: true } },
@@ -221,15 +183,35 @@ describe("studioHelpers (CT-6C-02)", () => {
     ).toBe("Custom fail");
   });
 
-  it("TC-HF-07 & NP-5: requestImageVariation handles model selection, fallback, and source image HTTP 404", async () => {
+  it("TC-CLEAN-01, WP-CLEAN-01 & NP-CLEAN-01: requestImageVariation uses 4-step Direct Upload, normalizes MIME, guards size, and classifies 40MB error", async () => {
     window.localStorage.setItem("vikini-gemini-key", "gk-1");
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(new Blob(["img"], { type: "image/png" }), { status: 200 })
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
+
+    const build4StepFetch = (
+      sourceRes: Response,
+      storagePath = "u/conv-1/ref-11111111-2222-3333-4444-555555555555.png"
+    ) =>
+      vi
+        .fn()
+        .mockResolvedValueOnce(sourceRes)
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                uploads: [{ signedUrl: "https://proj.supabase.co/u/var-1", storagePath }],
+              },
+            }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 200 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+    // WP-CLEAN-01: 4-step happy path
+    const fetchOk = build4StepFetch(
+      new Response(new Blob(["img"], { type: "image/png" }), { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchOk);
 
     const res = await requestImageVariation({
       imageUrl: "https://cdn.example/img.png",
@@ -238,24 +220,42 @@ describe("studioHelpers (CT-6C-02)", () => {
       model: "gemini-3-pro-image",
       aspectRatio: "16:9",
     });
+
     expect(res).toEqual({ success: true });
-    const reqInit = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(fetchOk).toHaveBeenCalledTimes(4);
+    expect(fetchOk.mock.calls[0][0]).toBe("https://cdn.example/img.png");
+    expect(fetchOk.mock.calls[1][0]).toBe("/api/generate-image/reference-upload-url");
+    expect(JSON.parse(fetchOk.mock.calls[1][1].body as string)).toEqual({
+      conversationId: "conv-1",
+      files: [{ filename: "variation.png", mimeType: "image/png", sizeBytes: 3 }],
+    });
+    expect(fetchOk.mock.calls[2][0]).toBe("https://proj.supabase.co/u/var-1");
+    expect(fetchOk.mock.calls[2][1]).toEqual(
+      expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "image/png", "x-upsert": "false" },
+        body: expect.any(File),
+      })
+    );
+    const reqInit = fetchOk.mock.calls[3][1] as RequestInit;
     expect((reqInit.headers as Record<string, string>)["x-api-key"]).toBe("gk-1");
     const body = JSON.parse(reqInit.body as string) as {
       prompt: string;
-      options: { model: string; referenceImage: string };
+      options: Record<string, unknown>;
     };
     expect(body.prompt).toContain("Original description: Golden sunset");
     expect(body.options.model).toBe("gemini-3-pro-image");
-    expect(body.options.referenceImage).toMatch(/^data:/);
+    expect(body.options.aspectRatio).toBe("16:9");
+    expect(body.options.referenceImagePaths).toEqual([
+      "u/conv-1/ref-11111111-2222-3333-4444-555555555555.png",
+    ]);
+    expect("referenceImage" in body.options).toBe(false);
+    expect("referenceImages" in body.options).toBe(false);
 
-    // Fallback model when non-gemini-3 model is active
-    const fetchFallback = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(new Blob(["img"], { type: "image/png" }), { status: 200 })
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    // Non-gemini-3 model falls back to gemini-3.1-flash-image via 4-step upload
+    const fetchFallback = build4StepFetch(
+      new Response(new Blob(["img"], { type: "image/png" }), { status: 200 })
+    );
     vi.stubGlobal("fetch", fetchFallback);
     await requestImageVariation({
       imageUrl: "https://cdn.example/img.png",
@@ -264,12 +264,73 @@ describe("studioHelpers (CT-6C-02)", () => {
       model: "flux-dev",
       aspectRatio: "1:1",
     });
-    const fallbackBody = JSON.parse(fetchFallback.mock.calls[1][1].body as string) as {
+    const fallbackBody = JSON.parse(fetchFallback.mock.calls[3][1].body as string) as {
       options: { model: string };
     };
     expect(fallbackBody.options.model).toBe("gemini-3.1-flash-image");
 
-    // NP-5: HTTP 404 on source image throws before calling /api/generate-image
+    // MIME normalization matrix (jpg/pjpeg, x-png, webp+charset, header fallback gif, unknown/prototype -> png)
+    const mimeCases: Array<{
+      blobType: string;
+      headerType?: string;
+      expectedMime: string;
+      expectedFile: string;
+    }> = [
+      { blobType: "image/jpg", expectedMime: "image/jpeg", expectedFile: "variation.jpg" },
+      { blobType: "image/pjpeg", expectedMime: "image/jpeg", expectedFile: "variation.jpg" },
+      { blobType: "image/x-png", expectedMime: "image/png", expectedFile: "variation.png" },
+      {
+        blobType: "IMAGE/WEBP; charset=utf-8",
+        expectedMime: "image/webp",
+        expectedFile: "variation.webp",
+      },
+      {
+        blobType: "",
+        headerType: "image/gif",
+        expectedMime: "image/gif",
+        expectedFile: "variation.gif",
+      },
+      {
+        blobType: "application/octet-stream",
+        expectedMime: "image/png",
+        expectedFile: "variation.png",
+      },
+      { blobType: "constructor", expectedMime: "image/png", expectedFile: "variation.png" },
+      { blobType: "toString", expectedMime: "image/png", expectedFile: "variation.png" },
+    ];
+
+    for (const c of mimeCases) {
+      const fakeBlob = new Blob(["img"], { type: c.blobType });
+      const resStub = {
+        ok: true,
+        headers: new Headers(c.headerType ? { "content-type": c.headerType } : {}),
+        blob: vi.fn().mockResolvedValue(fakeBlob),
+      } as unknown as Response;
+      const mimeFetch = build4StepFetch(resStub);
+      vi.stubGlobal("fetch", mimeFetch);
+
+      await requestImageVariation({
+        imageUrl: "https://cdn.example/test",
+        originalPrompt: "Test",
+        conversationId: "conv-1",
+        model: "gemini-3.1-flash-image",
+        aspectRatio: "1:1",
+      });
+      const signPayload = JSON.parse(mimeFetch.mock.calls[1][1].body as string) as {
+        files: Array<{ filename: string; mimeType: string }>;
+      };
+      expect(signPayload.files[0]).toMatchObject({
+        filename: c.expectedFile,
+        mimeType: c.expectedMime,
+      });
+    }
+
+    // Bilingual 40MB classification
+    expect(classifyStudioError("Reference image exceeds 40MB limit", identityT)).toEqual({
+      message: "studioRefFileTooLarge",
+    });
+
+    // NP-CLEAN-01 (1): HTTP 404 on source image throws before sign/generate
     const fetch404 = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetch404);
     await expect(
@@ -282,6 +343,72 @@ describe("studioHelpers (CT-6C-02)", () => {
       })
     ).rejects.toThrow("Failed to fetch source image");
     expect(fetch404).toHaveBeenCalledTimes(1);
+
+    // NP-CLEAN-01 (2): Empty blob (size 0) throws before sign/generate
+    const fetchEmpty = vi.fn().mockResolvedValueOnce(new Response(new Blob([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchEmpty);
+    await expect(
+      requestImageVariation({
+        imageUrl: "https://cdn.example/empty.png",
+        originalPrompt: "Empty",
+        conversationId: "conv-1",
+        model: "gemini-3-pro-image",
+        aspectRatio: "1:1",
+      })
+    ).rejects.toThrow("Failed to fetch source image");
+    expect(fetchEmpty).toHaveBeenCalledTimes(1);
+
+    // NP-CLEAN-01 (3): Source blob > 40MB throws ReferenceImageUploadError before sign/generate
+    const oversizedBlob = new Blob(["x"], { type: "image/png" });
+    Object.defineProperty(oversizedBlob, "size", { value: STUDIO_REF_IMAGE_MAX_BYTES + 1 });
+    const fetchHuge = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "content-type": "image/png" }),
+      blob: vi.fn().mockResolvedValue(oversizedBlob),
+    } as unknown as Response);
+    vi.stubGlobal("fetch", fetchHuge);
+    await expect(
+      requestImageVariation({
+        imageUrl: "https://cdn.example/huge.png",
+        originalPrompt: "Huge",
+        conversationId: "conv-1",
+        model: "gemini-3-pro-image",
+        aspectRatio: "1:1",
+      })
+    ).rejects.toThrow(ReferenceImageUploadError);
+    expect(fetchHuge).toHaveBeenCalledTimes(1);
+
+    // NP-CLEAN-01 (4): PUT returns 413 -> throws ReferenceImageUploadError without calling /api/generate-image
+    const fetchPut413 = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new Blob(["img"], { type: "image/png" }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              uploads: [
+                { signedUrl: "https://proj.supabase.co/u/v", storagePath: "u/c/ref-1.png" },
+              ],
+            },
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 413 }));
+    vi.stubGlobal("fetch", fetchPut413);
+    await expect(
+      requestImageVariation({
+        imageUrl: "https://cdn.example/img.png",
+        originalPrompt: "Too big on storage",
+        conversationId: "conv-1",
+        model: "gemini-3-pro-image",
+        aspectRatio: "1:1",
+      })
+    ).rejects.toThrow(ReferenceImageUploadError);
+    expect(fetchPut413).toHaveBeenCalledTimes(3);
   });
 
   it("TC-HF-08 & NP-5: fetchStudioBatchQuota unwraps data envelopes and guards malformed/failed responses", async () => {
@@ -334,32 +461,6 @@ describe("studioHelpers (CT-6C-02)", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("Network down")));
     expect(await fetchStudioBatchQuota(onError)).toBeNull();
     expect(onError).toHaveBeenCalledTimes(1);
-  });
-
-  it("TC-W2B-14(d): fileToBase64 rejects cleanly on FileReader.onerror without hanging", async () => {
-    class FailingReaderWithError {
-      error: Error | null = new Error("Disk read error");
-      result: string | null = null;
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        this.onerror?.();
-      }
-    }
-    vi.stubGlobal("FileReader", FailingReaderWithError);
-    await expect(fileToBase64(new Blob(["x"]))).rejects.toThrow("Disk read error");
-
-    class FailingReaderWithoutError {
-      error: Error | null = null;
-      result: string | null = null;
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        this.onerror?.();
-      }
-    }
-    vi.stubGlobal("FileReader", FailingReaderWithoutError);
-    await expect(fileToBase64(new Blob(["x"]))).rejects.toThrow("Failed to read file");
   });
 
   it("TC-IMG-01..TC-IMG-06 & NP-1..NP-2: parseImageApiResponse and classifyStudioError handle 504/502 non-JSON and timeout errors safely", async () => {
@@ -460,5 +561,112 @@ describe("studioHelpers (CT-6C-02)", () => {
     await expect(
       postGenerateImageRequest({ prompt: "dragon" }, "k", "Generation failed")
     ).rejects.toThrow("Generation failed (HTTP 504)");
+  });
+
+  it("TC-REF-10: uploadReferenceImages signs a batch in 1 request, PUTs each file directly, and throws ReferenceImageUploadError on failure", async () => {
+    expect(await uploadReferenceImages([], "conv-1")).toEqual([]);
+
+    const f1 = new File(["img1"], "a.png", { type: "image/png" });
+    const f2 = new File(["img2"], "b.webp", { type: "image/webp" });
+
+    // Happy path: 1 sign POST + 2 direct PUT calls
+    const fetchOk = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              uploads: [
+                { signedUrl: "https://proj.supabase.co/u/1", storagePath: "u/c/ref-1.png" },
+                { signedUrl: "https://proj.supabase.co/u/2", storagePath: "u/c/ref-2.webp" },
+              ],
+            },
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchOk);
+
+    const paths = await uploadReferenceImages([f1, f2], "conv-1", "Upload failed");
+    expect(paths).toEqual(["u/c/ref-1.png", "u/c/ref-2.webp"]);
+    expect(fetchOk).toHaveBeenCalledTimes(3);
+    expect(fetchOk.mock.calls[0][0]).toBe("/api/generate-image/reference-upload-url");
+    expect(fetchOk.mock.calls[1][0]).toBe("https://proj.supabase.co/u/1");
+    expect(fetchOk.mock.calls[1][1]).toEqual(
+      expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "image/png", "x-upsert": "false" },
+        body: f1,
+      })
+    );
+    expect(fetchOk.mock.calls[2][0]).toBe("https://proj.supabase.co/u/2");
+
+    // buildGenerateImageBody attaches referenceImagePaths and leaves referenceImages undefined
+    const body = buildGenerateImageBody({
+      prompt: "Upscale",
+      conversationId: "conv-1",
+      model: "gemini-3.1-flash-image",
+      aspectRatio: "1:1",
+      resolution: "4K",
+      style: "none",
+      isEnhancerOn: false,
+      referenceImagePaths: paths,
+    });
+    const bodyOpts = body.options as Record<string, unknown>;
+    expect(bodyOpts.referenceImagePaths).toEqual(paths);
+    expect(bodyOpts.referenceImages).toBeUndefined();
+
+    // Error path 1: Sign API returns HTTP 400
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { message: "Too large" } }), { status: 400 })
+        )
+    );
+    await expect(uploadReferenceImages([f1], "conv-1", "Upload failed")).rejects.toBeInstanceOf(
+      ReferenceImageUploadError
+    );
+
+    // Error path 2: Direct PUT returns HTTP 413
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                uploads: [
+                  { signedUrl: "https://proj.supabase.co/u/1", storagePath: "u/c/ref-1.png" },
+                ],
+              },
+            }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 413 }))
+    );
+    await expect(uploadReferenceImages([f1], "conv-1", "Upload failed")).rejects.toBeInstanceOf(
+      ReferenceImageUploadError
+    );
+
+    // Error path 3: Malformed response (missing uploads array)
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ success: true, data: {} }), { status: 200 })
+        )
+    );
+    await expect(uploadReferenceImages([f1], "conv-1", "Upload failed")).rejects.toBeInstanceOf(
+      ReferenceImageUploadError
+    );
   });
 });
