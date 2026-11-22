@@ -89,7 +89,7 @@ function createFakeChild(
   };
 }
 
-describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-15)", () => {
+describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-16)", () => {
   let tmpBase = "";
   let tmpRepo = "";
   let tmpArtifact = "";
@@ -229,6 +229,28 @@ describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-15)", () => {
       ),
     });
 
+    const nestedWinSep = validateScriptPath("tests\\e2e\\smoke.js", {
+      repoRoot: tmpRepo,
+      artifactRoot: tmpArtifact,
+    });
+    expect(nestedWinSep).toEqual({
+      ok: true,
+      resolvedPath: canonicalizeWindowsPath(
+        fs.realpathSync(path.join(tmpRepo, "tests", "e2e", "smoke.js"))
+      ),
+    });
+
+    const mixedSep = validateScriptPath("tests\\e2e/smoke.js", {
+      repoRoot: tmpRepo,
+      artifactRoot: tmpArtifact,
+    });
+    expect(mixedSep).toEqual({
+      ok: true,
+      resolvedPath: canonicalizeWindowsPath(
+        fs.realpathSync(path.join(tmpRepo, "tests", "e2e", "smoke.js"))
+      ),
+    });
+
     const scratchScript = validateScriptPath(
       path.join(tmpArtifact, "conv-1", "scratch", "qa.cjs"),
       { repoRoot: tmpRepo, artifactRoot: tmpArtifact }
@@ -262,6 +284,11 @@ describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-15)", () => {
       { input: path.join(tmpArtifact, "conv-1", "no-scratch.js"), match: /allowed roots/i },
       { input: "tests/bad.bat", match: /extension/i },
       { input: "tests/bad.ps1", match: /extension/i },
+      { input: "tests\\bad.ps1", match: /extension/i },
+      { input: "scripts\\bad.ps1", match: /extension/i },
+      { input: "tests\\.js", match: /extension/i },
+      { input: "tests\\.env.js", match: /\.env/i },
+      { input: "tests\\..\\..\\outside.js", match: /traversal/i },
       { input: "tests/bad.json", match: /extension/i },
       { input: "tests/missing.js", match: /does not exist/i },
       { input: "tests/e2e", match: /extension|regular file/i },
@@ -416,11 +443,23 @@ describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-15)", () => {
       spawnSync: mockSpawnSync as unknown as typeof spawnSync,
     });
     expect(mockSpawnSync).toHaveBeenCalledWith(
-      path.join("C:\\Windows", "System32", "taskkill.exe"),
+      path.win32.join("C:\\Windows", "System32", "taskkill.exe"),
       ["/F", "/T", "/PID", "4242"],
       { stdio: "ignore", windowsHide: true, shell: false, timeout: 10_000 }
     );
     expect(winChild.killMock).toHaveBeenCalledWith("SIGKILL");
+
+    const slashRootMock = vi.fn(() => ({ status: 0 }));
+    killProcessTree(winChild, {
+      platform: "win32",
+      systemRoot: "C:/Windows",
+      spawnSync: slashRootMock as unknown as typeof spawnSync,
+    });
+    expect(slashRootMock).toHaveBeenCalledWith(
+      "C:\\Windows\\System32\\taskkill.exe",
+      ["/F", "/T", "/PID", "4242"],
+      { stdio: "ignore", windowsHide: true, shell: false, timeout: 10_000 }
+    );
 
     const linuxChild = createFakeChild(5151);
     const mockProcessKill = vi.fn(() => true);
@@ -775,5 +814,126 @@ describe("scripts/visual-qa-runner.mjs (VQ-01..VQ-15)", () => {
         "win32"
       )
     ).toBe(true);
+  });
+
+  it("VQ-16 (TC-VQ-16a, NP-2): isMainModule handles bidirectional win32/linux paths, special chars, UNC, and rejects cross-OS/driveless mismatches", () => {
+    // Simulated win32 happy paths (lowercase drive, mixed separators + dot-segments, case-insensitive, spaces/#/% , UNC)
+    expect(
+      isMainModule(
+        "file:///C:/Users/wyemh/vikini/scripts/visual-qa-runner.mjs",
+        "c:/Users/wyemh/./vikini/scripts/../scripts/visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(true);
+    expect(
+      isMainModule(
+        "file:///c:/users/wyemh/VIKINI/scripts/Visual-QA-Runner.mjs",
+        "C:\\Users\\wyemh\\vikini\\scripts\\visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(true);
+    expect(
+      isMainModule(
+        "file:///C:/Users/my%20user/vikini%20%231/100%25/visual-qa-runner.mjs",
+        "c:\\Users\\my user\\vikini #1\\100%\\visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(true);
+    expect(
+      isMainModule(
+        "file://server/share/scripts/visual-qa-runner.mjs",
+        "\\\\server\\share\\scripts\\visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(true);
+
+    // Simulated linux happy paths (standard POSIX, spaces/#/%, dot-segments)
+    expect(
+      isMainModule(
+        "file:///home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "/home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(true);
+    expect(
+      isMainModule(
+        "file:///home/my%20user/vikini%20%231/100%25/visual-qa-runner.mjs",
+        "/home/my user/vikini #1/100%/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(true);
+    expect(
+      isMainModule(
+        "file:///home/runner/vikini/scripts/visual-qa-runner.mjs",
+        "/home/runner/./vikini/scripts/../scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(true);
+
+    // Negative Probes (NP-2)
+    expect(
+      isMainModule(
+        "file:///home/runner/Vikini/scripts/visual-qa-runner.mjs",
+        "/home/runner/vikini/scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///C:/Users/wyemh/vikini/scripts/other.mjs",
+        "c:\\Users\\wyemh\\vikini\\scripts\\visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///home/runner/vikini/scripts/other.mjs",
+        "/home/runner/vikini/scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(false);
+    expect(isMainModule("file:///C:/a.mjs", undefined, "win32")).toBe(false);
+    expect(isMainModule("file:///C:/a.mjs", "", "win32")).toBe(false);
+    expect(
+      isMainModule(undefined, "/home/runner/vikini/scripts/visual-qa-runner.mjs", "linux")
+    ).toBe(false);
+    expect(isMainModule("", "/home/runner/vikini/scripts/visual-qa-runner.mjs", "linux")).toBe(
+      false
+    );
+    expect(
+      isMainModule(
+        "file:///home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "/home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "\\home\\runner\\work\\vikini\\scripts\\visual-qa-runner.mjs",
+        "win32"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///C:/Users/wyemh/vikini/scripts/visual-qa-runner.mjs",
+        "C:\\Users\\wyemh\\vikini\\scripts\\visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///C:/Users/wyemh/vikini/scripts/visual-qa-runner.mjs",
+        "c:/Users/wyemh/vikini/scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(false);
+    expect(
+      isMainModule(
+        "file:///C:/Users/wyemh/vikini/scripts/visual-qa-runner.mjs",
+        "/home/runner/work/vikini/scripts/visual-qa-runner.mjs",
+        "linux"
+      )
+    ).toBe(false);
   });
 });

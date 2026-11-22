@@ -491,4 +491,27 @@ describe("googleDocsResolver.server", () => {
     expect(res.resolvedCount).toBe(0);
     expect(mockFetch).toHaveBeenCalledTimes(1); // No fallback TXT after abort
   });
+
+  it("TC-GD-09-Sheet (NP-4): returns GOOGLE_DOC_PRIVATE on HTTP 200 HTML sign-in payload for Google Sheets without CSV fallback or XLSX parsing", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeStreamResponse(
+        [Buffer.from("<!DOCTYPE html><html><body>Sign in - Google Accounts</body></html>")],
+        { "content-type": "text/html; charset=utf-8" }
+      )
+    );
+
+    const res = await resolveGoogleWorkspaceLinks({
+      content: "https://docs.google.com/spreadsheets/d/1PrivateSheetHtml123/edit",
+      contents: [{ role: "user", parts: [{ text: "Read sheet" }] }],
+      sysPrompt: "",
+      model: "gemini-4-neon",
+      isLocalModel: false,
+      remainingTokens: 20_000,
+    });
+
+    expect(res.urlContext[0]?.status).toBe("GOOGLE_DOC_PRIVATE");
+    expect((res.contents[0].parts[0] as { text: string }).text).toContain("Anyone with the link");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockParseXlsxWithExcelJs).not.toHaveBeenCalled();
+  });
 });

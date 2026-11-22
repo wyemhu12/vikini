@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-22: Fix Cross-OS Path/URL Handling in Visual QA Runner on Linux CI & Resolve ESLint `curly` Warning
+
+- **Khắc phục triệt để 2 lỗi CI trên `ubuntu-latest` trong `scripts/visual-qa-runner.mjs`**:
+  - Chuẩn hóa phân cách đường dẫn `toPosix(s)` trước `path.isAbsolute`/`path.resolve` trong `validateScriptPath` (sửa `VQ-04`) và dùng `path.posix.extname(toPosix(p))` trong `checkSecretAndExt` để chặn đồng nhất dotfile backslash (`tests\.js`) trên Linux.
+  - Chuyển `killProcessTree` nhánh `win32` sang `path.win32.join` tránh đường dẫn trộn dấu phân cách trên Linux CI.
+  - Cập nhật `isMainModule` (`@param {string | undefined} metaUrl`) dùng tường minh `path.win32` / `path.posix` + xác thực chặt gốc tuyệt đối (chặn driveless `\home\...` trên Linux CI & tiền tố ổ đĩa Windows dưới `linux`) + `pathToFileURL(normalized, { windows: isWin })` bọc `try/catch` fail-closed (sửa `VQ-15`).
+- **Xử lý cảnh báo ESLint `curly` duy nhất trong repo (`src/lib/features/chat/googleDocsResolver.server.ts:420-422`)**:
+  - Bọc khối `{ ... }` cho nhánh `if (isHtmlPayload(xlsxRes.contentType, xlsxRes.bytes))` (đưa `npx eslint . --max-warnings 0` về 0 errors, 0 warnings).
+- **Kiểm thử & Living Docs**: Mở rộng `VQ-04`, `VQ-05`, `VQ-09`, bổ sung `VQ-16` (cross-OS hai chiều `win32` ↔ `linux` + Negative Probes) trong `scripts/visual-qa-runner.test.ts`, bổ sung `TC-GD-09-Sheet (NP-4)` trong `googleDocsResolver.server.test.ts`, và ghi nhận bài học `/post-fix` vào `docs/lessons-learned.md`.
+
+---
+
 ## 2026-11-22: Gemini-Native Agent Governance (Remove Claude Code CLI) & Playwright Visual QA Anti-Hang Runner
 
 - **Gỡ bỏ hoàn toàn Claude Code CLI & chuẩn hóa kiến trúc quản trị Gemini-Native**:

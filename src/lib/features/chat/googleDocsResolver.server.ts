@@ -417,8 +417,9 @@ async function resolveSheetLink(
     return buildFailureOutcome(link, xlsxRes.kind);
   }
   if (xlsxRes.ok) {
-    if (isHtmlPayload(xlsxRes.contentType, xlsxRes.bytes))
+    if (isHtmlPayload(xlsxRes.contentType, xlsxRes.bytes)) {
       return buildFailureOutcome(link, "private");
+    }
     if (hasZipMagic(xlsxRes.bytes)) {
       const maxChars = Math.max(1000, estimateCharBudget(state.remainingTokens));
       const parsed = await parseXlsxWithExcelJs(xlsxRes.bytes, maxChars);

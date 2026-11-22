@@ -141,7 +141,7 @@ const safeRealpath = (p, rp) => {
 /** @param {string} p @param {string} label */
 function checkSecretAndExt(p, label) {
   if (isEnvSecretPath(p)) return `${label} cannot target .env* secret files.`;
-  if (!ALLOWED_EXTS.has(path.extname(p).toLowerCase())) {
+  if (!ALLOWED_EXTS.has(path.posix.extname(toPosix(p)).toLowerCase())) {
     return `${label} extension must be .js, .mjs, or .cjs.`;
   }
   return null;
@@ -163,12 +163,13 @@ function isInsideAllowedRoots(realPath, repoRoot, artRoot, platform) {
 export function validateScriptPath(rawScriptPath, opts = {}) {
   const s = typeof rawScriptPath === "string" ? rawScriptPath.trim() : "";
   if (!s || hasCtrl(s)) return { ok: false, reason: "Empty path or control chars." };
-  if (toPosix(s).split("/").includes("..")) return { ok: false, reason: "Traversal forbidden." };
-  const pre = checkSecretAndExt(s, "Script path");
+  const norm = toPosix(s);
+  if (norm.split("/").includes("..")) return { ok: false, reason: "Traversal forbidden." };
+  const pre = checkSecretAndExt(norm, "Script path");
   if (pre) return { ok: false, reason: pre };
   const repoRoot = canonicalizeWindowsPath(path.resolve(opts.repoRoot ?? REPO_ROOT));
   const rp = opts.realpathSync ?? fs.realpathSync;
-  const cand = path.isAbsolute(s) ? path.resolve(s) : path.resolve(repoRoot, s);
+  const cand = path.isAbsolute(norm) ? path.resolve(norm) : path.resolve(repoRoot, norm);
   let stat;
   try {
     stat = (opts.statSync ?? fs.statSync)(cand);
@@ -258,7 +259,7 @@ export function killProcessTree(child, deps = {}) {
   const pid = child?.pid;
   if (!pid || !Number.isInteger(pid) || pid <= 0) return;
   if ((deps.platform ?? process.platform) === "win32") {
-    const exe = path.join(
+    const exe = path.win32.join(
       deps.systemRoot ?? process.env.SystemRoot ?? "C:\\Windows",
       "System32",
       "taskkill.exe"
@@ -523,13 +524,26 @@ export async function runVisualQa(options, deps = {}) {
   );
 }
 
-/** @param {string} metaUrl @param {string | undefined} argv1 @param {NodeJS.Platform} [platform] */
+/** @param {string | undefined} metaUrl @param {string | undefined} argv1 @param {NodeJS.Platform} [platform] */
 export function isMainModule(metaUrl, argv1, platform = process.platform) {
-  if (typeof argv1 !== "string" || !argv1) return false;
-  const expected = pathToFileURL(canonicalizeWindowsPath(path.resolve(argv1))).href;
-  return platform === "win32"
-    ? metaUrl.toLowerCase() === expected.toLowerCase()
-    : metaUrl === expected;
+  if (typeof metaUrl !== "string" || !metaUrl || typeof argv1 !== "string" || !argv1) {
+    return false;
+  }
+  const isWin = platform === "win32";
+  if (!isWin && /^[A-Za-z]:[\\/]/.test(argv1)) return false;
+  const resolved = (isWin ? path.win32 : path.posix).resolve(argv1);
+  if (isWin) {
+    if (!/^(?:[A-Za-z]:\\|\\\\[^\\]+\\[^\\]+)/.test(resolved)) return false;
+  } else if (!resolved.startsWith("/")) {
+    return false;
+  }
+  const normalized = isWin ? canonicalizeWindowsPath(resolved) : resolved;
+  try {
+    const expected = pathToFileURL(normalized, { windows: isWin }).href;
+    return isWin ? metaUrl.toLowerCase() === expected.toLowerCase() : metaUrl === expected;
+  } catch {
+    return false;
+  }
 }
 
 /** @param {string[]} [argv] */
