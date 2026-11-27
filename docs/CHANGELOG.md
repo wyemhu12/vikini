@@ -8,6 +8,30 @@
 
 ---
 
+## 2026-11-27: Raise Governance Rule Character Budgets (28K Always-On, 16K/24KB Per-Rule) & Add `verify-docs` Co-Located Tests
+
+- **Raise Governance rule budgets to align with Antigravity 2026 caps (`.agents/rules/02-quality.md`, `.agents/README.md`, `.agents/agents/reviewer/agent.md`)**:
+  - Update per-rule limits to `<= 16,000` chars and `<= 24,000` UTF-8 bytes (matching Antigravity's `24 KB` line-truncation ceiling) and unify `always_on` total budget to `<= 28,000` chars (~54%–70% of the `20,000`-token `defaultRulesBudget`), keeping `.agents/agents/*/agent.md <= 10,000` chars and `reviewer/agent.md < 7,500` chars unchanged.
+  - Synchronize Fail Criterion #6 in `.agents/agents/reviewer/agent.md` to eliminate stale `12,000`-char checks.
+- **Upgrade `scripts/verify-docs.mjs` and add co-located tests (`scripts/verify-docs.test.ts`, `.agents/scripts/code-freeze-guard.test.ts`)**:
+  - Export `RULE_MAX_CHARS`, `RULE_MAX_BYTES`, `ALWAYS_ON_MAX_CHARS`, `AGENT_MAX_CHARS`, `isAlwaysOnRule()` (YAML frontmatter-scoped), and `checkGovernanceLimits()` in `scripts/verify-docs.mjs` with full strict `// @ts-check` JSDoc annotations and an `isMainModule()` guard for side-effect-free ESM imports.
+  - Create `scripts/verify-docs.test.ts` (`VD-01`..`VD-06`, covering boundary values, multi-byte Vietnamese UTF-8 byte ceiling, `always_on` frontmatter isolation, CLI exit `0`/`1`, and import isolation) and update `.agents/scripts/code-freeze-guard.test.ts` (`TC-08`, M5, `TC-H`, `TC-STE-01`, `TC-STE-04` `NP-1`/`NP-4`/`NP-5`) as a Type C Approved Spec Change.
+
+---
+
+## 2026-11-27: Adopt ASD-STE100 ("STE-lite") Bilingual Writing Rules Across Governance Tiers
+
+- **Add core STE-lite writing guidelines in `.agents/rules/00-core.md` (`always_on`)**:
+  - Append a 3-line `STE-lite (VI & EN)` directive (`+408` LF / `+411` CRLF chars) under `## Communication Protocol` covering lexical consistency, active voice with named actor, one idea/action per sentence, zero fluff/metaphors, and Untouchables preservation while keeping tone `Professional, friendly` and total `always_on <= 17,000` under both LF and Windows CRLF.
+- **Expand bilingual UI microcopy & Fixed Bilingual UI Glossary in `.agents/rules/04-bilingual.md` and `.agents/skills/add-translation/SKILL.md`**:
+  - Add `## STE-Lite Microcopy Guidelines (VI & EN)` for buttons, empty states, and toast/error messages plus a 22-term `## Fixed Bilingual UI Glossary` grounded in `src/lib/utils/translations/vi.ts` and `en.ts`.
+  - Add a validation checklist item in `.agents/skills/add-translation/SKILL.md` so Fast-Track edits check the glossary.
+- **Create `.agents/rules/06-writing-style.md` (`trigger: glob`) and update governance indexes & tests**:
+  - Add `trigger: glob` rule (`globs: "docs/*.md, docs/**/*.md, **/docs/*.md, **/docs/**/*.md"`) covering Procedural vs. Descriptive separation, lexical consistency, zero AI-slop, Untouchables, document-type rules, and Anti-Nitpick guidance for `@reviewer`/`@qa`.
+  - Register `06-writing-style.md` in `.agents/rules/02-quality.md` (`+64` LF / `+65` CRLF chars), `.agents/README.md`, `docs/plans/README.md`, and add co-located unit tests `TC-STE-01..TC-STE-04` (including 3 Negative Probes) in `.agents/scripts/code-freeze-guard.test.ts`.
+
+---
+
 ## 2026-11-22: Fix Cross-OS Path/URL Handling in Visual QA Runner on Linux CI & Resolve ESLint `curly` Warning
 
 - **Khắc phục triệt để 2 lỗi CI trên `ubuntu-latest` trong `scripts/visual-qa-runner.mjs`**:

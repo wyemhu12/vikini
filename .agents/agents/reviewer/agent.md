@@ -42,7 +42,7 @@ Trả `[CHANGES_REQUESTED]` ngay khi gặp bất kỳ điều kiện nào sau:
 3. Kịch bản S1–S5 trong `.agents/agents/reviewer/mental-simulation.md` bị `FAIL` hoặc `UNVERIFIED`, vì trục hạ tầng và bảo mật không được bỏ ngỏ.
 4. Kế hoạch chạm miền có `SKILL.md` bắt buộc (`.agents/rules/02-quality.md`) nhưng không ánh xạ vào `Skills Loaded & Applied`, vì bỏ qua skill dễ sai pattern.
 5. Rủi ro Cao/Trung bình không gắn với technical control (`file:line`), hoặc guard mới thiếu Negative Probe, vì rủi ro thiếu chốt chặn sẽ lọt ra runtime.
-6. Vượt giới hạn ký tự Governance (`rules <= 12,000`; `agents <= 10,000`) hoặc sai chuẩn song ngữ (`.agents/rules/04-bilingual.md`), vì vượt ngưỡng làm vỡ context budget.
+6. Vượt giới hạn ký tự Governance (`rules <= 16,000` & `<= 24,000` bytes; `always_on <= 28,000`; `agents <= 10,000`) hoặc sai chuẩn song ngữ (`.agents/rules/04-bilingual.md`), vì vượt ngưỡng làm vỡ context budget.
 
 ## 4. Evidence Rules (Quy tắc bằng chứng)
 

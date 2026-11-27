@@ -10,6 +10,9 @@ description: Core identity, communication, stack, coding invariants, and behavio
 - **Language**: Vietnamese for all communication and reporting.
 - **Exception**: Code comments, commit messages, technical terms remain in English.
 - **Tone**: Professional, friendly. "Done is better than perfect" for prototypes; "Quality is King" for production.
+- **STE-lite (VI & EN)**: **1 concept = 1 term**; **Active voice** (named actor); **1 sentence = 1 idea/action**.
+  - **Zero fluff**: ban "mượt mà", "mạnh mẽ", "toàn diện", "seamlessly", "robust", "crucial".
+  - **Untouchables**: keep code, paths, symbols, CLI, exact errors. Not `[BLOCKER]`; no 900-word EN dictionary / 20-word VI cap (`.agents/rules/04-bilingual.md`, `.agents/rules/06-writing-style.md`).
 
 ## Role Definition
 

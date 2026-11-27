@@ -75,3 +75,4 @@ export function MyComponent() {
 - Key names match exactly (case-sensitive)
 - Run `npm run type-check` to confirm key parity
 - Component uses `useLanguage()` hook, not direct imports
+- Follow STE-lite microcopy rules and the Fixed Bilingual UI Glossary in `.agents/rules/04-bilingual.md`

@@ -23,6 +23,7 @@ Before writing any code, identify the task domain and read relevant documentatio
 - **Simplify / Dead code cleanup**: `.agents/skills/vikini-simplify/SKILL.md`
 - **Feature / Task Planning**: `docs/plans/`, **.agents/rules/05-plan-review.md**
 - **Code quality review / Refactoring**: `.agents/rules/01-coding.md` → **.agents/skills/vikini-audit/SKILL.md**
+- **Docs / Writing Style**: `.agents/rules/06-writing-style.md`
 
 <important>
 When a rule or skill is listed above, you MUST read and follow it step-by-step.
@@ -70,7 +71,7 @@ CẤM HẠ CHUẨN TEST: Cấm xóa `expect()`, comment-out test, nới lỏng m
 
 ## Governance Character Limits
 
-- Rules (`.agents/rules/*.md`): `<= 12,000` ký tự (tổng `always_on < 18,000`).
+- Rules (`.agents/rules/*.md`): `<= 16,000` ký tự & `<= 24,000` UTF-8 bytes (tổng `always_on <= 28,000`).
 - Agents (`.agents/agents/*/agent.md`): `<= 10,000` ký tự.
 - Đường dẫn nội bộ dùng relative path từ repo root (`src/lib/core/...`).
 

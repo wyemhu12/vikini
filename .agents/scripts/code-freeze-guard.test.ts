@@ -1514,7 +1514,7 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
   });
 
   describe("TC-08: Governance character limits, Normative Preservation Matrix & GC-04 Claude CLI removal", () => {
-    it("enforces rule/agent character budgets and < 18,000 chars total for always_on rules", () => {
+    it("enforces rule/agent character & UTF-8 byte budgets and <= 28,000 chars total for always_on rules", () => {
       const rulesDir = path.join(REPO_ROOT, ".agents", "rules");
       const ruleFiles = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
       let alwaysOnTotal = 0;
@@ -1522,13 +1522,17 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       const breakdown: Record<string, number> = {};
       for (const file of ruleFiles) {
         const content = fs.readFileSync(path.join(rulesDir, file), "utf8");
-        expect(content.length, `Rule ${file} <= 12,000 chars`).toBeLessThanOrEqual(12000);
+        expect(content.length, `Rule ${file} <= 16,000 chars`).toBeLessThanOrEqual(16000);
+        expect(
+          Buffer.byteLength(content, "utf8"),
+          `Rule ${file} <= 24,000 UTF-8 bytes`
+        ).toBeLessThanOrEqual(24000);
         if (/^trigger:\s*always_on\s*$/m.test(content)) {
           alwaysOnTotal += content.length;
           breakdown[file] = content.length;
         }
       }
-      expect(alwaysOnTotal, JSON.stringify(breakdown)).toBeLessThan(18000);
+      expect(alwaysOnTotal, JSON.stringify(breakdown)).toBeLessThanOrEqual(28000);
 
       for (const agent of ["planner", "reviewer", "qa"]) {
         const agentPath = path.join(REPO_ROOT, ".agents", "agents", agent, "agent.md");
@@ -1586,8 +1590,18 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(r02).toContain("Loại A");
       expect(r02).toContain("Loại B");
       expect(r02).toContain("Loại C");
-      expect(r02).toContain("12,000");
+      expect(r02).toContain("16,000");
+      expect(r02).toContain("24,000");
+      expect(r02).toContain("28,000");
       expect(r02).toContain("10,000");
+      const reviewerAgent = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "agents", "reviewer", "agent.md"),
+        "utf8"
+      );
+      expect(reviewerAgent).toContain("16,000");
+      expect(reviewerAgent).toContain("24,000");
+      expect(reviewerAgent).toContain("28,000");
+      expect(reviewerAgent).toContain("10,000");
       expect(r02).toContain("ARCHITECTURAL ALERT: 3 fixes failed");
 
       // 7 mandatory items in 05-plan-review.md
@@ -1916,14 +1930,14 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
         { content: r02 },
         { content: r05 },
       ]);
-      expect(realTotal).toBeLessThanOrEqual(17000);
+      expect(realTotal).toBeLessThanOrEqual(28000);
 
       const overBudgetFixture = computeAlwaysOnBudget([
         { content: r00 },
-        { content: r02 + "x".repeat(6000) },
+        { content: r02 + "x".repeat(12000) },
         { content: r05 },
       ]);
-      expect(overBudgetFixture).toBeGreaterThanOrEqual(18000);
+      expect(overBudgetFixture).toBeGreaterThan(28000);
 
       expect(r02).not.toContain("| :---");
       expect(r05).toContain("Plan Scope Guard");
@@ -2030,6 +2044,203 @@ describe("Governance 2.0 Remake — TC-01..TC-08", () => {
       expect(JSON.parse(wp3.stdout)).toMatchObject({
         decision: "ask",
       });
+    });
+  });
+
+  describe("ASD-STE100 (STE-lite) Governance Rules — TC-STE-01..TC-STE-04", () => {
+    it("TC-STE-01: validates 06-writing-style.md glob frontmatter, LF/CRLF budget, and governance indexes", () => {
+      const r00 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "00-core.md"), "utf8");
+      const r02 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "02-quality.md"),
+        "utf8"
+      );
+      const r05 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "05-plan-review.md"),
+        "utf8"
+      );
+      const r06 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "06-writing-style.md"),
+        "utf8"
+      );
+      const agentsReadme = fs.readFileSync(path.join(REPO_ROOT, ".agents", "README.md"), "utf8");
+
+      expect(r06).toMatch(/^trigger:\s*glob\s*$/m);
+      expect(r06).not.toMatch(/^trigger:\s*always_on\s*$/m);
+      expect(r06).toContain('globs: "docs/*.md, docs/**/*.md, **/docs/*.md, **/docs/**/*.md"');
+      expect(r06.length).toBeLessThanOrEqual(16000);
+      expect(Buffer.byteLength(r06, "utf8")).toBeLessThanOrEqual(24000);
+
+      expect(agentsReadme).toContain("./rules/06-writing-style.md");
+      expect(agentsReadme).toContain("7 bộ quy tắc");
+      expect(agentsReadme).toContain("**/docs/**/*.md");
+      expect(agentsReadme).toContain("16,000");
+      expect(agentsReadme).toContain("24,000");
+      expect(agentsReadme).toContain("28,000");
+      expect(r02).toContain(".agents/rules/06-writing-style.md");
+
+      const toLf = (text: string) => text.replace(/\r\n/g, "\n");
+      const toCrlf = (text: string) => toLf(text).replace(/\n/g, "\r\n");
+      const alwaysOnFiles = [r00, r02, r05];
+      const totalLf = alwaysOnFiles.reduce((sum, content) => sum + toLf(content).length, 0);
+      const totalCrlf = alwaysOnFiles.reduce((sum, content) => sum + toCrlf(content).length, 0);
+
+      expect(totalLf).toBeLessThanOrEqual(28000);
+      expect(totalCrlf).toBeLessThanOrEqual(28000);
+      for (const content of alwaysOnFiles) {
+        expect(Buffer.byteLength(content, "utf8")).toBeLessThanOrEqual(24000);
+      }
+    });
+
+    it("TC-STE-02: preserves core STE-lite clauses across 00-core.md, 04-bilingual.md, 06-writing-style.md, and add-translation/SKILL.md Validation Checklist", () => {
+      const r00 = fs.readFileSync(path.join(REPO_ROOT, ".agents", "rules", "00-core.md"), "utf8");
+      const r04 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "04-bilingual.md"),
+        "utf8"
+      );
+      const r06 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "06-writing-style.md"),
+        "utf8"
+      );
+      const addTranslationSkill = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "skills", "add-translation", "SKILL.md"),
+        "utf8"
+      );
+
+      expect(r00).toContain("Professional, friendly");
+      expect(r00).toContain("STE-lite");
+      expect(r00).toContain("1 concept = 1 term");
+      expect(r00).toContain("Active voice");
+      expect(r00).toContain("Untouchables");
+      expect(r00).toContain("900-word");
+      expect(r00).toContain("[BLOCKER]");
+
+      expect(r04).toContain("src/lib/utils/translations/");
+      expect(r04).toContain("STE-Lite Microcopy Guidelines");
+      expect(r04).toContain("Fixed Bilingual UI Glossary");
+
+      expect(r06).toContain("Procedural");
+      expect(r06).toContain("Descriptive");
+      expect(r06).toContain("Untouchables");
+      expect(r06).toContain("[BLOCKER]");
+      expect(r06).toContain("word-count");
+
+      const checklistHeading = "## Validation Checklist";
+      const checklistIdx = addTranslationSkill.indexOf(checklistHeading);
+      expect(checklistIdx).toBeGreaterThan(0);
+      const checklistSection = addTranslationSkill.slice(checklistIdx + checklistHeading.length);
+      expect(checklistSection).toContain(".agents/rules/04-bilingual.md");
+      expect(checklistSection).toContain("STE-lite");
+      expect(checklistSection).toContain("Fixed Bilingual UI Glossary");
+    });
+
+    it("TC-STE-03: grounds Fixed Bilingual UI Glossary entries against real src/lib/utils/translations/{vi,en}.ts", () => {
+      const r04 = fs.readFileSync(
+        path.join(REPO_ROOT, ".agents", "rules", "04-bilingual.md"),
+        "utf8"
+      );
+      const viSource = fs.readFileSync(
+        path.join(REPO_ROOT, "src", "lib", "utils", "translations", "vi.ts"),
+        "utf8"
+      );
+      const enSource = fs.readFileSync(
+        path.join(REPO_ROOT, "src", "lib", "utils", "translations", "en.ts"),
+        "utf8"
+      );
+
+      const canonicalPairs: ReadonlyArray<readonly [string, string]> = [
+        ["Cuộc trò chuyện", "Conversation"],
+        ["Kho kiến thức", "Knowledge Base"],
+        ["Tệp đính kèm", "Attachments"],
+        ["Ảnh tham chiếu", "Reference Image"],
+        ["Suy luận", "Reasoning"],
+        ["Hồ sơ Truyện", "Story Bible"],
+        ["Phân cảnh", "Scene Beats"],
+        ["Thư viện", "Gallery"],
+        ["Xếp hạng", "Rank"],
+        ["Tải xuống", "Download"],
+      ];
+
+      for (const [viTerm, enTerm] of canonicalPairs) {
+        expect(r04, `04-bilingual.md missing VI term: ${viTerm}`).toContain(viTerm);
+        expect(r04, `04-bilingual.md missing EN term: ${enTerm}`).toContain(enTerm);
+        expect(viSource, `vi.ts missing canonical VI term: ${viTerm}`).toContain(viTerm);
+        expect(enSource, `en.ts missing canonical EN term: ${enTerm}`).toContain(enTerm);
+      }
+    });
+
+    it("TC-STE-04 (Negative Probes): proves always_on budget isolation, Code Freeze ask-protection, UTF-8 byte ceiling, and zero stale/shorthand violations", () => {
+      // NP-1: Flipping all non-always_on rules (glob / model_decision) to always_on breaches the 28,000 budget
+      const rulesDir = path.join(REPO_ROOT, ".agents", "rules");
+      const ruleEntries = fs
+        .readdirSync(rulesDir)
+        .filter((f) => f.endsWith(".md"))
+        .map((file) => ({
+          file,
+          content: fs.readFileSync(path.join(rulesDir, file), "utf8"),
+        }));
+
+      const syntheticAllAlwaysOnTotal = ruleEntries
+        .map((entry) =>
+          entry.content.replace(/^trigger:\s*(?:glob|model_decision)\s*$/m, "trigger: always_on")
+        )
+        .filter((content) => /^trigger:\s*always_on\s*$/m.test(content))
+        .reduce((sum, content) => sum + content.length, 0);
+
+      expect(syntheticAllAlwaysOnTotal).toBeGreaterThan(28000);
+
+      // NP-2: Code Freeze Guard Gate 7 still demands ask for 06-writing-style.md even when approved
+      const guardResult = decide(
+        { targetFile: ".agents/rules/06-writing-style.md" },
+        {
+          planApproved: true,
+          approvedFiles: [".agents/rules/06-writing-style.md"],
+        }
+      );
+      expect(guardResult.decision).toBe("ask");
+      expect(guardResult.reason).toContain("governance file in .agents/");
+
+      // NP-3: Zero shorthand prefix or legacy Claude CLI references across modified/new governance files
+      const shorthandRegex = /(?:^|[^\w./-])(rules|skills|workflows)\/([\w.-]+\.md)/;
+      const bannedClaudeCliPatterns = [
+        /run-claude\.ps1/i,
+        /\bCLAUDE\.md\b/,
+        /\.claude\/settings\.json/i,
+        /claude-planner-prompt\.md/i,
+        /claude-reviewer-prompt\.md/i,
+      ];
+      const touchedGovernanceFiles = [
+        ".agents/rules/00-core.md",
+        ".agents/rules/02-quality.md",
+        ".agents/rules/04-bilingual.md",
+        ".agents/rules/06-writing-style.md",
+        ".agents/skills/add-translation/SKILL.md",
+      ];
+
+      for (const rel of touchedGovernanceFiles) {
+        const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+        expect(text, `${rel} must not use shorthand governance paths`).not.toMatch(shorthandRegex);
+        for (const pattern of bannedClaudeCliPatterns) {
+          expect(text, `${rel} must not match ${pattern}`).not.toMatch(pattern);
+        }
+      }
+
+      // NP-4: Vietnamese multi-byte UTF-8 fixture passes <= 16,000 chars yet exceeds 24,000 UTF-8 bytes
+      const vietnameseMultiByteFixture = "ệ".repeat(8001);
+      expect(vietnameseMultiByteFixture.length).toBeLessThanOrEqual(16000);
+      expect(Buffer.byteLength(vietnameseMultiByteFixture, "utf8")).toBeGreaterThan(24000);
+
+      // NP-5: Zero stale budget numbers (12,000 / 17,000 / 18,000) in active governance policy & validator files
+      const staleBudgetRegex = /\b(?:12,?000|17,?000|18,?000)\b/;
+      const activeBudgetPolicyFiles = [
+        ".agents/rules/02-quality.md",
+        ".agents/README.md",
+        ".agents/agents/reviewer/agent.md",
+        "scripts/verify-docs.mjs",
+      ];
+      for (const rel of activeBudgetPolicyFiles) {
+        const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+        expect(text, `${rel} must not retain stale budget limits`).not.toMatch(staleBudgetRegex);
+      }
     });
   });
 });
